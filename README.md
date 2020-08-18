@@ -1,6 +1,10 @@
 # AutoCAN_SensorHub
 Automotive sensor hub using Arduino.
 
+Development Hardware
+-
+* [Arduino-compatible AST-CAN485 Dev Board](https://www.sparkfun.com/products/14483)
+
 Inputs
 -
 * Fuel pressure (Honeywell MLH100PGB06A sensor)
