@@ -4,6 +4,7 @@ Automotive sensor hub using Arduino.
 Development Hardware
 -
 * [Arduino-compatible AST-CAN485 Dev Board](https://www.sparkfun.com/products/14483)
+* DAC for analog output, probably a MCP4725
 
 Inputs
 -
