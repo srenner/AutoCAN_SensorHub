@@ -18,4 +18,4 @@ Outputs
 * Fuel pressure on CAN bus
 * VSS on CAN bus
 * Analog AFR signal
-* (Maybe) Analog fuel pressure signal
+* Analog fuel pressure signal
