@@ -1,5 +1,5 @@
 # AutoCAN_SensorHub
-Automotive sensor hub using Arduino.
+Automotive sensor hub using Arduino. Simplifies wiring and communication when adding multiple aftermarket sensors to a vehicle. Outputs data to the CAN bus to be used by the ECU or other microcontrollers, and analog outputs to be used by traditional gauges.
 
 Development Hardware
 -
@@ -17,5 +17,5 @@ Outputs
 -
 * Fuel pressure on CAN bus
 * VSS on CAN bus
-* Analog AFR signal (for traditional gauge)
-* (Maybe) Analog fuel pressure signal (for traditional gauge)
+* Analog AFR signal
+* (Maybe) Analog fuel pressure signal
