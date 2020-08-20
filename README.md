@@ -5,7 +5,7 @@ Development Hardware
 -
 * [Arduino-compatible AST-CAN485 Dev Board](https://www.sparkfun.com/products/14483)
 * [VR Conditioner Board](http://jbperf.com/dual_VR/v2_1.html)
-* DAC for analog output, probably a MCP4725
+* (Maybe) DAC for analog output (MCP4725)
 
 Inputs
 -
@@ -17,5 +17,5 @@ Outputs
 -
 * Fuel pressure on CAN bus
 * VSS on CAN bus
-* Analog AFR signal
-* (Maybe) Analog fuel pressure signal
+* Analog AFR signal (for traditional gauge)
+* (Maybe) Analog fuel pressure signal (for traditional gauge)
