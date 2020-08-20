@@ -10,7 +10,7 @@ Development Hardware
 Inputs
 -
 * Fuel pressure (Honeywell MLH100PGB06A sensor)
-* VSS (Ford 8k/mile sensor)
+* VSS (Ford 8k pulse/mile sensor)
 * CAN ECU data (from MegaSquirt)
 
 Outputs
