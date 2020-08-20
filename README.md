@@ -17,5 +17,6 @@ Outputs
 -
 * Fuel pressure on CAN bus
 * VSS on CAN bus
+* Trip odometer on CAN bus
 * Analog AFR signal
 * Analog fuel pressure signal
