@@ -4,7 +4,7 @@ Automotive sensor hub using Arduino. Simplifies wiring and communication when ad
 Development Hardware
 -
 * [Arduino-compatible AST-CAN485 Dev Board](https://www.sparkfun.com/products/14483)
-* [VR Conditioner Board](http://jbperf.com/dual_VR/v2_1.html)
+* [VR Conditioner Board](http://jbperf.com/dual_VR/v2_1.html) for handling VSS pulses
 * (Maybe) DAC for analog output (MCP4725)
 
 Inputs
