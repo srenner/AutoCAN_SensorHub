@@ -13,7 +13,7 @@ Inputs
 * VSS (Ford 8k pulse/mile sensor)
 * CAN ECU data (from MegaSquirt)
 * Triple axis accelerometer (ADXL335)
-* Oxygen sensor temperature status
+* Oxygen sensor temperature status (signal that would normally drive a solid or blinking LED)
 
 Outputs
 -
@@ -23,3 +23,4 @@ Outputs
 * Analog AFR signal
 * Analog fuel pressure signal
 * Accelerometer data on CAN bus
+* Oxygen sensor temperature status on CAN bus
