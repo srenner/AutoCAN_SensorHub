@@ -12,6 +12,7 @@ Inputs
 * Fuel pressure (Honeywell MLH100PGB06A sensor)
 * VSS (Ford 8k pulse/mile sensor)
 * CAN ECU data (from MegaSquirt)
+* Triple axis accelerometer (ADXL335)
 
 Outputs
 -
@@ -20,3 +21,4 @@ Outputs
 * Trip odometer on CAN bus
 * Analog AFR signal
 * Analog fuel pressure signal
+* Accelerometer data on CAN bus
