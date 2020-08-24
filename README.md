@@ -13,6 +13,7 @@ Inputs
 * VSS (Ford 8k pulse/mile sensor)
 * CAN ECU data (from MegaSquirt)
 * Triple axis accelerometer (ADXL335)
+* Oxygen sensor temperature status
 
 Outputs
 -
