@@ -21,6 +21,6 @@ Outputs
 * VSS on CAN bus
 * Trip odometer on CAN bus
 * Analog AFR signal
-* Analog fuel pressure signal
+* ~~Analog fuel pressure signal~~
 * Accelerometer data on CAN bus
 * Oxygen sensor temperature status on CAN bus
