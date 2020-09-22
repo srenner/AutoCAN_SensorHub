@@ -250,7 +250,9 @@ void loop() {
   processCanMessages();
   interrupts();
 
-  Serial.println(engine_afr.currentValue);
+  //Serial.println(engine_afr.currentValue);
+
+  outputAFR();
 
   //perform speed calculation on an interval of SPEED_CALC_INTERVAL
   if(currentMillis - lastMillis >= SPEED_CALC_INTERVAL && currentMillis > 500) {
@@ -265,6 +267,33 @@ void loop() {
     
     lastMillis = currentMillis;
   }
+}
+
+void outputAFR()
+{
+  //using a 14.7 Spartan2 wideband controller, which has a linear output
+  //0v = 10afr, 5v = 20afr
+  //many other controllers are the same
+
+  uint8_t afrTimesTen = engine_afr.currentValue * 10;
+  if(afrTimesTen < 100)
+  {
+    afrTimesTen = 100;
+  }
+  else if(afrTimesTen > 180)
+  {
+    afrTimesTen = 180;
+  }
+
+  //sSerial.println(afrTimesTen);
+  
+  uint16_t analogOutputValue = 0;
+
+
+
+  analogOutputValue = map(afrTimesTen, 100, 180, 0, 1023);
+
+  Serial.println(analogOutputValue);
 }
 
 void processCanMessages()
