@@ -3,14 +3,14 @@
 #include <math.h>
 #include <AutoCAN.h>
 
-#define DEBUG_MPH true
-#define DEBUG_CAN true
+#define DEBUG_MPH false
+#define DEBUG_CAN false
+#define DEBUG_VSS false
 
 //pins used on board
 byte const VSS_PIN = 9;                                     //pin 9 on the board corresponds to interrupt 7 on the chip
 
 //other constants
-unsigned const int PULSES_PER_MILE = 8000;                  //typical early Ford speed sensor
 byte const SPEED_CALC_INTERVAL = 125;                       //read number of pulses approx every 1/8 second
 byte const BUFFER_LENGTH = 4;                               //length of MPH buffer
 
@@ -24,7 +24,7 @@ byte mphBufferIndex = 0;
 byte oldAssistValue = 0;
 byte newAssistValue = 0;
 
-//can bus variables
+//can bus variables ////////////////////////////////////////////////////////////
 
 uint8_t canBuffer[8] = {};
 
@@ -66,6 +66,13 @@ uint8_t canBufferPlus4[8] = {};
 
 volatile canData canTemp;
 uint8_t canBufferTemp[8] = {};
+
+// can objects for sending messages
+st_cmd_t txMsg;
+uint8_t txBuffer[8] = {0,0,0,0,0,0,0,0};
+
+unsigned long vssCanTest = 0;
+
 
 //interrupt routine for interrupt 7 (pin 9) - vss sensor
 ISR(INT7_vect) {
@@ -120,8 +127,11 @@ ISR(CANIT_vect) {
         allCanMessages[MSG_MS_PLUS4]->counter++;
         fillCanDataBuffer(MSG_MS_PLUS4, &canTemp);
         break;
+      case CAN_SH_VSS_MSG_ID:
+        vssCounter++;
+        break;
       default:
-        canUnhandledCount++;
+        vssCanTest++;
         break;
     }
   }
@@ -149,6 +159,8 @@ void setup() {
   
 
   #pragma region setup can bus
+
+  txMsg.pt_data = &txBuffer[0];      // reference message data to transmit buffer
 
   clearBuffer(&canBufferTemp[0]);
   canTemp.data = &canBufferTemp[0];
@@ -232,11 +244,13 @@ void setup() {
 void loop() {
   currentMillis = millis();
   
+  Serial.println(vssCanTest);
+
   //perform speed calculation on an interval of SPEED_CALC_INTERVAL
   if(currentMillis - lastMillis >= SPEED_CALC_INTERVAL && currentMillis > 500) {
     
     float mph = calculateSpeed();
-    sendToCan(mph);
+    sendVssToCan(mph); //mph
 
     if(DEBUG_CAN)
     {
@@ -253,7 +267,7 @@ float calculateSpeed() {
   float pulsesPerSecond = (float)pulses * ((float)1000 / ((float)currentMillis - (float)lastMillis));
   float pulsesPerMinute = pulsesPerSecond * 60.0;
   float pulsesPerHour = pulsesPerMinute * 60.0;
-  float milesPerHour = pulsesPerHour / (float)PULSES_PER_MILE;
+  float milesPerHour = pulsesPerHour / (float)VSS_PULSE_PER_MILE;
   if(mphBufferIndex >= BUFFER_LENGTH - 1) {
     mphBufferIndex = 0;
   }
@@ -273,10 +287,42 @@ float calculateSpeed() {
   return smoothedMPH;
 }
 
-void sendToCan(float mph) {
+void sendVssToCan(float mph) {
   //send vssCounter on the CAN bus to be interpreted as an odometer reading
   //send calculated speed on the CAN bus
   //send steering mode to the CAN bus in case anyone needs to read the status
 
+  //engine_vss.currentValue = (allCanMessages[MSG_MS_PLUS4]->data[0] * 256 + allCanMessages[MSG_MS_PLUS4]->data[1]) / 10.0;
+
+  uint16_t mphTimesTen = (uint16_t)(mph * 10.0);
+  byte byte1 = mphTimesTen / 256;
+  byte byte2 = mphTimesTen % 256;
+
+  if(DEBUG_VSS)
+  {
+    Serial.println(mphTimesTen);
+    Serial.println(byte1);
+    Serial.println(byte2);
+
+    Serial.println("=====");
+  }
+
+  txBuffer[0] = byte1;
+  txBuffer[1] = byte2;
   
+  // Setup CAN packet.
+  txMsg.ctrl.ide = MESSAGE_PROTOCOL;    // Set CAN protocol (0: CAN 2.0A, 1: CAN 2.0B)
+  txMsg.id.std   = CAN_SH_VSS_MSG_ID;   // Set message ID
+  txMsg.dlc      = MESSAGE_LENGTH;      // Data length: 8 bytes
+  txMsg.ctrl.rtr = MESSAGE_RTR;         // Set rtr bit
+  txMsg.pt_data = &txBuffer[0];         // reference message data to transmit buffer
+
+  // Send command to the CAN port controller
+  txMsg.cmd = CMD_TX_DATA;       // send message
+  // Wait for the command to be accepted by the controller
+  while(can_cmd(&txMsg) != CAN_CMD_ACCEPTED);
+  //Serial.println("command accepted?");
+  // Wait for command to finish executing
+  while(can_get_status(&txMsg) == CAN_STATUS_NOT_COMPLETED);
+  //Serial.println("send complete?");
 }
