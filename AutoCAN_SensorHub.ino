@@ -246,6 +246,12 @@ void loop() {
   
   Serial.println(vssCanTest);
 
+  noInterrupts();
+  processCanMessages();
+  interrupts();
+
+  Serial.println(engine_afr.currentValue);
+
   //perform speed calculation on an interval of SPEED_CALC_INTERVAL
   if(currentMillis - lastMillis >= SPEED_CALC_INTERVAL && currentMillis > 500) {
     
@@ -259,6 +265,11 @@ void loop() {
     
     lastMillis = currentMillis;
   }
+}
+
+void processCanMessages()
+{
+    engine_afr.currentValue = (double)allCanMessages[MSG_MS_PLUS2]->data[1] / 10.0;
 }
 
 float calculateSpeed() {
