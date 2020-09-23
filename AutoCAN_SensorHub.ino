@@ -8,6 +8,7 @@
 #define DEBUG_VSS false
 
 //pins used on board
+byte const AFR_PIN = 5;                                     //analog (pwm) afr output for traditional gauge
 byte const VSS_PIN = 9;                                     //pin 9 on the board corresponds to interrupt 7 on the chip
 
 //other constants
@@ -148,6 +149,7 @@ void fillCanDataBuffer(int index, canData* canTemp)
 void setup() {
   canInit(500000);
   Serial.begin(1000000);
+  pinMode(AFR_PIN, OUTPUT);
   pinMode(VSS_PIN, INPUT_PULLUP);
   
   //set trigger for interrupt 7 (pin 9) to be falling edge (see datasheet)
@@ -275,25 +277,22 @@ void outputAFR()
   //0v = 10afr, 5v = 20afr
   //many other controllers are the same
 
-  uint8_t afrTimesTen = engine_afr.currentValue * 10;
-  if(afrTimesTen < 100)
-  {
-    afrTimesTen = 100;
-  }
-  else if(afrTimesTen > 180)
-  {
-    afrTimesTen = 180;
-  }
+  //send AFR output to DAC over I2C
 
-  //sSerial.println(afrTimesTen);
-  
-  uint16_t analogOutputValue = 0;
-
-
-
-  analogOutputValue = map(afrTimesTen, 100, 180, 0, 1023);
-
-  Serial.println(analogOutputValue);
+  //comment out analog output - pwm does not work with my gauge
+  // uint8_t afrTimesTen = engine_afr.currentValue * 10;
+  // if(afrTimesTen < 100)
+  // {
+  //   afrTimesTen = 100;
+  // }
+  // else if(afrTimesTen > 180)
+  // {
+  //   afrTimesTen = 180;  //use 18.0 as the max value here because many traditional gauges are 10-18
+  // }
+  // uint16_t analogOutputValue = 0;
+  // analogOutputValue = map(afrTimesTen, 100, 180, 0, 255);
+  // analogWrite(AFR_PIN, analogOutputValue);
+  // Serial.println(analogOutputValue);
 }
 
 void processCanMessages()
