@@ -5,7 +5,10 @@ Development Hardware
 -
 * [Arduino-compatible AST-CAN485 Dev Board](https://www.sparkfun.com/products/14483)
 * [VR Conditioner Board](http://jbperf.com/dual_VR/v2_1.html) for handling VSS pulses
-* (Maybe) DAC for analog output (MCP4725)
+* DAC for analog output
+* 3 axis accelerometer (I2C communication)
+* GPS with compass (I2C communication)
+* Spartan 2 wideband controller for O2 sensor status
 
 Inputs
 -
@@ -23,7 +26,6 @@ Outputs
 * VSS on CAN bus
 * Trip odometer on CAN bus
 * Analog AFR signal
-* ~~Analog fuel pressure signal~~
 * Accelerometer data on CAN bus
 * Oxygen sensor temperature status on CAN bus
 * GPS coordinates on CAN bus
