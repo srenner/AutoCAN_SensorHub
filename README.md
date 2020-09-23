@@ -12,7 +12,9 @@ Inputs
 * Fuel pressure (Honeywell MLH100PGB06A sensor)
 * VSS (Ford 8k pulse/mile sensor)
 * CAN ECU data (from MegaSquirt)
-* Triple axis accelerometer (ADXL335)
+* Triple axis accelerometer
+* GPS
+* Compass
 * Oxygen sensor temperature status (signal that would normally drive a solid or blinking LED)
 
 Outputs
@@ -24,3 +26,5 @@ Outputs
 * ~~Analog fuel pressure signal~~
 * Accelerometer data on CAN bus
 * Oxygen sensor temperature status on CAN bus
+* GPS coordinates on CAN bus
+* Compass heading on CAN bus
