@@ -3,7 +3,7 @@
 #include <math.h>
 #include <AutoCAN.h>
 
-#define DEBUG_MPH false
+#define DEBUG_MPH true
 #define DEBUG_CAN false
 #define DEBUG_VSS false
 
@@ -246,7 +246,7 @@ void setup() {
 void loop() {
   currentMillis = millis();
   
-  Serial.println(vssCanTest);
+  //Serial.println(vssCanTest);
 
   noInterrupts();
   processCanMessages();
@@ -319,7 +319,7 @@ float calculateSpeed() {
     mphSum += mphBuffer[i];
   }
   float smoothedMPH = mphSum / (float)BUFFER_LENGTH;
-  if(DEBUG_MPH) {
+  if(DEBUG_MPH && smoothedMPH > 0.0) {
     Serial.print("MPH: ");
     Serial.println(smoothedMPH);
   }
