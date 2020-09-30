@@ -342,6 +342,10 @@ void sendVssToCan(float mph) {
 
   txBuffer[0] = byte1;
   txBuffer[1] = byte2;
+
+  //vssCounter fill up bytes 3-6 (2-5 array index)
+  //todo
+
   
   // Setup CAN packet.
   txMsg.ctrl.ide = MESSAGE_PROTOCOL;    // Set CAN protocol (0: CAN 2.0A, 1: CAN 2.0B)
@@ -354,8 +358,6 @@ void sendVssToCan(float mph) {
   txMsg.cmd = CMD_TX_DATA;       // send message
   // Wait for the command to be accepted by the controller
   while(can_cmd(&txMsg) != CAN_CMD_ACCEPTED);
-  //Serial.println("command accepted?");
   // Wait for command to finish executing
   while(can_get_status(&txMsg) == CAN_STATUS_NOT_COMPLETED);
-  //Serial.println("send complete?");
 }
