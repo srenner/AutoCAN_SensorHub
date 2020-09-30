@@ -2,24 +2,27 @@
 #include <ASTCanLib.h>
 #include <math.h>
 #include <AutoCAN.h>
+#include <Adafruit_MCP4728.h>
+#include <Wire.h>
 
 #define DEBUG_MPH true
 #define DEBUG_CAN false
 #define DEBUG_VSS false
+#define DEBUG_DAC true
 
 //pins used on board
-byte const AFR_PIN = 5;                                     //analog (pwm) afr output for traditional gauge
+//byte const AFR_PIN = 5;                                     //analog (pwm) afr output for traditional gauge
 byte const VSS_PIN = 9;                                     //pin 9 on the board corresponds to interrupt 7 on the chip
 
 //other constants
 byte const SPEED_CALC_INTERVAL = 125;                       //read number of pulses approx every 1/8 second
-byte const BUFFER_LENGTH = 4;                               //length of MPH buffer
+byte const MPH_BUFFER_LENGTH = 4;                               //length of MPH buffer
 
 volatile unsigned long vssCounter = 0;                      //increment pulses in the interrupt function
 unsigned long vssCounterPrevious = 0;                       //used to calculate speed
 unsigned long currentMillis = 0;                            //now
 unsigned long lastMillis = 0;                               //used to cut time into slices of SPEED_CALC_INTERVAL
-float mphBuffer[BUFFER_LENGTH];                             //keep buffer of mph readings (approx .5 second)
+float mphBuffer[MPH_BUFFER_LENGTH];                             //keep buffer of mph readings (approx .5 second)
 byte mphBufferIndex = 0;
 
 byte oldAssistValue = 0;
@@ -67,6 +70,10 @@ st_cmd_t txMsg;
 uint8_t txBuffer[8] = {0,0,0,0,0,0,0,0};
 
 unsigned long vssCanTest = 0;
+
+// DAC stuff
+
+Adafruit_MCP4728 mcp;
 
 
 //interrupt routine for interrupt 7 (pin 9) - vss sensor
@@ -143,7 +150,7 @@ void fillCanDataBuffer(int index, canData* canTemp)
 void setup() {
   canInit(500000);
   Serial.begin(1000000);
-  pinMode(AFR_PIN, OUTPUT);
+  //pinMode(AFR_PIN, OUTPUT);
   pinMode(VSS_PIN, INPUT_PULLUP);
   
   //set trigger for interrupt 7 (pin 9) to be falling edge (see datasheet)
@@ -153,6 +160,16 @@ void setup() {
   //enable interrupt 7 (pin 9) (see datasheet)
   EIMSK |= ( 1 << INT7);
   
+  if (!mcp.begin()) 
+  {
+    if(DEBUG_DAC)
+    {
+      Serial.println("Failed to find MCP4728 chip");
+    }
+  }
+
+
+
 
   #pragma region setup can bus
 
@@ -244,11 +261,12 @@ void loop() {
 
   noInterrupts();
   processCanMessages();
+  float afr = engine_afr.currentValue;
   interrupts();
 
   //Serial.println(engine_afr.currentValue);
 
-  outputAFR();
+  outputAFR(afr);
 
   //perform speed calculation on an interval of SPEED_CALC_INTERVAL
   if(currentMillis - lastMillis >= SPEED_CALC_INTERVAL && currentMillis > 500) {
@@ -265,28 +283,25 @@ void loop() {
   }
 }
 
-void outputAFR()
+void outputAFR(float afr)
 {
   //using a 14.7 Spartan2 wideband controller, which has a linear output
   //0v = 10afr, 5v = 20afr
   //many other controllers are the same
 
   //send AFR output to DAC over I2C
-
-  //comment out analog output - pwm does not work with my gauge
-  // uint8_t afrTimesTen = engine_afr.currentValue * 10;
-  // if(afrTimesTen < 100)
-  // {
-  //   afrTimesTen = 100;
-  // }
-  // else if(afrTimesTen > 180)
-  // {
-  //   afrTimesTen = 180;  //use 18.0 as the max value here because many traditional gauges are 10-18
-  // }
-  // uint16_t analogOutputValue = 0;
-  // analogOutputValue = map(afrTimesTen, 100, 180, 0, 255);
-  // analogWrite(AFR_PIN, analogOutputValue);
-  // Serial.println(analogOutputValue);
+  uint8_t afrTimesTen = afr * 10;
+  if (afrTimesTen > 180)
+  {
+    afrTimesTen = 180;
+  }
+  if(afrTimesTen < 100)
+  {
+    afrTimesTen = 100;
+  }
+  uint16_t output = map(afrTimesTen, 100, 180, 0, 4095);
+  mcp.setChannelValue(MCP4728_CHANNEL_A, output);
+  Serial.println(output);
 }
 
 void processCanMessages()
@@ -301,7 +316,7 @@ float calculateSpeed() {
   float pulsesPerMinute = pulsesPerSecond * 60.0;
   float pulsesPerHour = pulsesPerMinute * 60.0;
   float milesPerHour = pulsesPerHour / (float)VSS_PULSE_PER_MILE;
-  if(mphBufferIndex >= BUFFER_LENGTH - 1) {
+  if(mphBufferIndex >= MPH_BUFFER_LENGTH - 1) {
     mphBufferIndex = 0;
   }
   else {
@@ -309,10 +324,10 @@ float calculateSpeed() {
   }
   mphBuffer[mphBufferIndex] = milesPerHour;
   float mphSum = 0.0;
-  for(byte i = 0; i < BUFFER_LENGTH; i++) {
+  for(byte i = 0; i < MPH_BUFFER_LENGTH; i++) {
     mphSum += mphBuffer[i];
   }
-  float smoothedMPH = mphSum / (float)BUFFER_LENGTH;
+  float smoothedMPH = mphSum / (float)MPH_BUFFER_LENGTH;
   if(DEBUG_MPH && smoothedMPH > 0.0) {
     Serial.print("MPH: ");
     Serial.println(smoothedMPH);
