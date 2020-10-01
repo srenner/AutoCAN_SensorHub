@@ -5,6 +5,7 @@
 #include <Adafruit_MCP4728.h>
 #include <Wire.h>
 #include "SparkFun_Ublox_Arduino_Library.h"
+#include <TimeLib.h>
 
 #define DEBUG_MPH true
 #define DEBUG_CAN false
@@ -80,6 +81,8 @@ Adafruit_MCP4728 mcp;
 // GPS stuff
 
 SFE_UBLOX_GPS gps;
+int8_t timeZoneOffset[5] = {-4, -5, -6, -7, -8};
+uint8_t timeZoneIndex = 1; // change this value with a button, load/save from eeprom
 
 //interrupt routine for interrupt 7 (pin 9) - vss sensor
 ISR(INT7_vect) {
@@ -273,7 +276,8 @@ void setup() {
 
 void loop() {
   currentMillis = millis();
-  
+  //Serial.print(millis());
+  //Serial.print(" - ");
   //Serial.println(vssCanTest);
 
   noInterrupts();
@@ -303,22 +307,38 @@ void loop() {
 
     Serial.println();
 
-    Serial.print(gps.getYear());
-    Serial.print("-");
-    Serial.print(gps.getMonth());
-    Serial.print("-");
-    Serial.print(gps.getDay());
+    // Serial.print(gps.getYear());
+    // Serial.print("-");
+    // Serial.print(gps.getMonth());
+    // Serial.print("-");
+    // Serial.print(gps.getDay());
+    // Serial.print(" ");
+    // Serial.print(gps.getHour());
+    // Serial.print(":");
+    // Serial.print(gps.getMinute());
+    // Serial.print(":");
+    // Serial.print(gps.getSecond());
+    // Serial.println();
+
+
+    setTime(gps.getHour(), gps.getMinute(), gps.getSecond(), gps.getDay(), gps.getMonth(), gps.getYear());
+    adjustTime(timeZoneOffset[timeZoneIndex] * SECS_PER_HOUR);
+
+    Serial.print(hour());
+    Serial.print(":");
+    Serial.print(minute());
+    Serial.print(":");
+    Serial.print(second());
     Serial.print(" ");
-    Serial.print(gps.getHour());
-    Serial.print(":");
-    Serial.print(gps.getMinute());
-    Serial.print(":");
-    Serial.print(gps.getSecond());
+    Serial.print(month());
+    Serial.print(" ");
+    Serial.print(day());
+    Serial.print(" ");
+    Serial.print(year()); 
     Serial.println();
 
 
-
-    delay(1000);
+    //delay(1000);
   }
   
 
@@ -338,6 +358,7 @@ void loop() {
     
     lastMillis = currentMillis;
   }
+  //Serial.println(millis());
 }
 
 void outputAFR(float afr)
