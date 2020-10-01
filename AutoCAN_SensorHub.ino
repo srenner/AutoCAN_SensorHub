@@ -10,7 +10,7 @@
 #define DEBUG_MPH true
 #define DEBUG_CAN false
 #define DEBUG_VSS false
-#define DEBUG_DAC false
+#define DEBUG_DAC true
 #define DEBUG_GPS true
 
 //pins used on board
@@ -177,6 +177,7 @@ void setup() {
   }
 
   gps.setI2COutput(COM_TYPE_UBX); //Set the I2C port to output UBX only (turn off NMEA noise)
+  gps.setNavigationFrequency(10); //Set output to 10 times a second
   gps.saveConfiguration(); //Save the current settings to flash and BBR
 
 
@@ -276,89 +277,69 @@ void setup() {
 
 void loop() {
   currentMillis = millis();
-  //Serial.print(millis());
-  //Serial.print(" - ");
-  //Serial.println(vssCanTest);
 
   noInterrupts();
   processCanMessages();
   float afr = engine_afr.currentValue;
   interrupts();
 
-  if(DEBUG_GPS)
+  //checkAndGetGPS();
+  outputAFR(afr);
+
+  if(currentMillis - lastMillis >= SPEED_CALC_INTERVAL && currentMillis > 500)
   {
-    long latitude = gps.getLatitude();
-    Serial.print(F("Lat: "));
-    Serial.print(latitude);
+    float mph = calculateSpeed();
+    sendVssToCan(mph); //mph
+    lastMillis = currentMillis;
+    checkAndGetGPS();
 
-    long longitude = gps.getLongitude();
-    Serial.print(F(" Long: "));
-    Serial.print(longitude);
-    Serial.print(F(" (degrees * 10^-7)"));
-
-    long altitude = gps.getAltitude();
-    Serial.print(F(" Alt: "));
-    Serial.print(altitude);
-    Serial.print(F(" (mm)"));
-
-    byte SIV = gps.getSIV();
-    Serial.print(F(" SIV: "));
-    Serial.print(SIV);
-
-    Serial.println();
-
-    // Serial.print(gps.getYear());
-    // Serial.print("-");
-    // Serial.print(gps.getMonth());
-    // Serial.print("-");
-    // Serial.print(gps.getDay());
-    // Serial.print(" ");
-    // Serial.print(gps.getHour());
-    // Serial.print(":");
-    // Serial.print(gps.getMinute());
-    // Serial.print(":");
-    // Serial.print(gps.getSecond());
-    // Serial.println();
+  }
+}
 
 
+void checkAndGetGPS()
+{
+  if(gps.checkUblox() || true)
+  {
     setTime(gps.getHour(), gps.getMinute(), gps.getSecond(), gps.getDay(), gps.getMonth(), gps.getYear());
     adjustTime(timeZoneOffset[timeZoneIndex] * SECS_PER_HOUR);
 
-    Serial.print(hour());
-    Serial.print(":");
-    Serial.print(minute());
-    Serial.print(":");
-    Serial.print(second());
-    Serial.print(" ");
-    Serial.print(month());
-    Serial.print(" ");
-    Serial.print(day());
-    Serial.print(" ");
-    Serial.print(year()); 
-    Serial.println();
-
-
-    //delay(1000);
-  }
-  
-
-
-  outputAFR(afr);
-
-  //perform speed calculation on an interval of SPEED_CALC_INTERVAL
-  if(currentMillis - lastMillis >= SPEED_CALC_INTERVAL && currentMillis > 500) {
-    
-    float mph = calculateSpeed();
-    sendVssToCan(mph); //mph
-
-    if(DEBUG_CAN)
+    if(DEBUG_GPS)
     {
-      Serial.println(canCount);
+      long latitude = gps.getLatitude();
+      Serial.print(F("Lat: "));
+      Serial.print(latitude);
+
+      long longitude = gps.getLongitude();
+      Serial.print(F(" Long: "));
+      Serial.print(longitude);
+      Serial.print(F(" (degrees * 10^-7)"));
+
+      long altitude = gps.getAltitude();
+      Serial.print(F(" Alt: "));
+      Serial.print(altitude);
+      Serial.print(F(" (mm)"));
+
+      byte SIV = gps.getSIV();
+      Serial.print(F(" SIV: "));
+      Serial.print(SIV);
+
+      Serial.println();
+
+      Serial.print(hour());
+      Serial.print(":");
+      Serial.print(minute());
+      Serial.print(":");
+      Serial.print(second());
+      Serial.print(" ");
+      Serial.print(month());
+      Serial.print(" ");
+      Serial.print(day());
+      Serial.print(" ");
+      Serial.print(year()); 
+      Serial.println();
     }
-    
-    lastMillis = currentMillis;
   }
-  //Serial.println(millis());
 }
 
 void outputAFR(float afr)
