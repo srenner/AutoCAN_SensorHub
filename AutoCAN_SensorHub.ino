@@ -4,11 +4,13 @@
 #include <AutoCAN.h>
 #include <Adafruit_MCP4728.h>
 #include <Wire.h>
+#include "SparkFun_Ublox_Arduino_Library.h"
 
 #define DEBUG_MPH true
 #define DEBUG_CAN false
 #define DEBUG_VSS false
-#define DEBUG_DAC true
+#define DEBUG_DAC false
+#define DEBUG_GPS true
 
 //pins used on board
 //byte const AFR_PIN = 5;                                     //analog (pwm) afr output for traditional gauge
@@ -75,6 +77,9 @@ unsigned long vssCanTest = 0;
 
 Adafruit_MCP4728 mcp;
 
+// GPS stuff
+
+SFE_UBLOX_GPS gps;
 
 //interrupt routine for interrupt 7 (pin 9) - vss sensor
 ISR(INT7_vect) {
@@ -160,6 +165,18 @@ void setup() {
   //enable interrupt 7 (pin 9) (see datasheet)
   EIMSK |= ( 1 << INT7);
   
+  Wire.begin();
+
+  if (gps.begin() == false) //Connect to the Ublox module using Wire port
+  {
+    Serial.println(F("Ublox GPS not detected at default I2C address. Please check wiring. Freezing."));
+    while (1);
+  }
+
+  gps.setI2COutput(COM_TYPE_UBX); //Set the I2C port to output UBX only (turn off NMEA noise)
+  gps.saveConfiguration(); //Save the current settings to flash and BBR
+
+
   if (!mcp.begin()) 
   {
     if(DEBUG_DAC)
@@ -264,7 +281,32 @@ void loop() {
   float afr = engine_afr.currentValue;
   interrupts();
 
-  //Serial.println(engine_afr.currentValue);
+  if(DEBUG_GPS)
+  {
+    long latitude = gps.getLatitude();
+    Serial.print(F("Lat: "));
+    Serial.print(latitude);
+
+    long longitude = gps.getLongitude();
+    Serial.print(F(" Long: "));
+    Serial.print(longitude);
+    Serial.print(F(" (degrees * 10^-7)"));
+
+    long altitude = gps.getAltitude();
+    Serial.print(F(" Alt: "));
+    Serial.print(altitude);
+    Serial.print(F(" (mm)"));
+
+    byte SIV = gps.getSIV();
+    Serial.print(F(" SIV: "));
+    Serial.print(SIV);
+
+    Serial.println();
+
+    delay(1000);
+  }
+  
+
 
   outputAFR(afr);
 
@@ -301,7 +343,10 @@ void outputAFR(float afr)
   }
   uint16_t output = map(afrTimesTen, 100, 180, 0, 4095);
   mcp.setChannelValue(MCP4728_CHANNEL_A, output);
-  Serial.println(output);
+  if(DEBUG_DAC)
+  {
+    Serial.println(output);
+  }
 }
 
 void processCanMessages()
