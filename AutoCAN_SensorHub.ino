@@ -303,6 +303,21 @@ void loop() {
 
     Serial.println();
 
+    Serial.print(gps.getYear());
+    Serial.print("-");
+    Serial.print(gps.getMonth());
+    Serial.print("-");
+    Serial.print(gps.getDay());
+    Serial.print(" ");
+    Serial.print(gps.getHour());
+    Serial.print(":");
+    Serial.print(gps.getMinute());
+    Serial.print(":");
+    Serial.print(gps.getSecond());
+    Serial.println();
+
+
+
     delay(1000);
   }
   
