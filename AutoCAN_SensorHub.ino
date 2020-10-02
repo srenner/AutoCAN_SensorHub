@@ -7,11 +7,11 @@
 #include "SparkFun_Ublox_Arduino_Library.h"
 #include <TimeLib.h>
 
-#define DEBUG_MPH true
+#define DEBUG_MPH false
 #define DEBUG_CAN false
-#define DEBUG_VSS false
-#define DEBUG_DAC true
-#define DEBUG_GPS true
+#define DEBUG_VSS true
+#define DEBUG_DAC false
+#define DEBUG_GPS false
 
 //pins used on board
 //byte const AFR_PIN = 5;                                     //analog (pwm) afr output for traditional gauge
@@ -23,6 +23,7 @@ byte const SPEED_CALC_INTERVAL = 125;                       //read number of pul
 byte const MPH_BUFFER_LENGTH = 4;                           //length of MPH buffer
 
 volatile unsigned long vssCounter = 0;                      //increment pulses in the interrupt function
+unsigned long vssCounterSafe = 0;                           //vss pulses that won't be corrupted by an interrupt
 unsigned long vssCounterPrevious = 0;                       //used to calculate speed
 unsigned long currentMillis = 0;                            //now
 unsigned long lastMphMillis = 0;                            //used to cut time into slices of SPEED_CALC_INTERVAL
@@ -282,6 +283,7 @@ void loop() {
   noInterrupts();
   processCanMessages();
   float afr = engine_afr.currentValue;
+  vssCounterSafe = vssCounter;
   interrupts();
 
   outputAFR(afr);
@@ -289,6 +291,7 @@ void loop() {
   if(currentMillis - lastGpsMillis >= GPS_CALC_INTERVAL && currentMillis > 500)
   {
     checkAndGetGPS();
+    sendGpsToCan();
     lastGpsMillis = currentMillis;
   }
 
@@ -400,7 +403,13 @@ float calculateSpeed() {
   return smoothedMPH;
 }
 
-void sendVssToCan(float mph) {
+void sendGpsToCan()
+{
+  
+}
+
+void sendVssToCan(float mph) 
+{
   //send vssCounter on the CAN bus to be interpreted as an odometer reading
   //send calculated speed on the CAN bus
   //send steering mode to the CAN bus in case anyone needs to read the status
@@ -411,20 +420,45 @@ void sendVssToCan(float mph) {
   byte byte1 = mphTimesTen / 256;
   byte byte2 = mphTimesTen % 256;
 
-  if(DEBUG_VSS)
-  {
-    Serial.println(mphTimesTen);
-    Serial.println(byte1);
-    Serial.println(byte2);
-
-    Serial.println("=====");
-  }
-
   txBuffer[0] = byte1;
   txBuffer[1] = byte2;
 
-  //vssCounter fill up bytes 3-6 (2-5 array index)
-  //todo
+
+  union
+  {
+    long vss;
+    byte buf[4];
+  } vssUnion;
+
+  vssUnion.vss = vssCounterSafe;
+
+  txBuffer[2] = vssUnion.buf[0];
+  txBuffer[3] = vssUnion.buf[1];
+  txBuffer[4] = vssUnion.buf[2];
+  txBuffer[5] = vssUnion.buf[3];
+
+
+  if(DEBUG_VSS)
+  {
+    Serial.print("VSS Pulses: ");
+    Serial.println(vssCounterSafe);
+    Serial.print(txBuffer[0]);
+    Serial.print(" ");
+    Serial.print(txBuffer[1]);
+    Serial.print(" | ");
+    Serial.print(txBuffer[2]);
+    Serial.print(" ");
+    Serial.print(txBuffer[3]);
+    Serial.print(" ");
+    Serial.print(txBuffer[4]);
+    Serial.print(" ");
+    Serial.print(txBuffer[5]);
+    Serial.print(" ");
+    Serial.print(txBuffer[6]);
+    Serial.print(" ");
+    Serial.println(txBuffer[7]);
+  }
+
 
   
   // Setup CAN packet.
