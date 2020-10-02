@@ -9,9 +9,9 @@
 
 #define DEBUG_MPH false
 #define DEBUG_CAN false
-#define DEBUG_VSS true
+#define DEBUG_VSS false
 #define DEBUG_DAC false
-#define DEBUG_GPS false
+#define DEBUG_GPS true
 
 //pins used on board
 //byte const AFR_PIN = 5;                                     //analog (pwm) afr output for traditional gauge
@@ -86,6 +86,8 @@ Adafruit_MCP4728 mcp;
 SFE_UBLOX_GPS gps;
 int8_t timeZoneOffset[5] = {-4, -5, -6, -7, -8};
 uint8_t timeZoneIndex = 1; // change this value with a button, load/save from eeprom
+
+datetime gpsDatetime;
 
 //interrupt routine for interrupt 7 (pin 9) - vss sensor
 ISR(INT7_vect) {
@@ -280,18 +282,18 @@ void setup() {
 void loop() {
   currentMillis = millis();
 
+  /////////////////////////////////////////////////////////////////////////////
   noInterrupts();
-  processCanMessages();
-  float afr = engine_afr.currentValue;
-  vssCounterSafe = vssCounter;
+  processCanMessages(); //take remote data from CAN bus interrupt and put it in variables
   interrupts();
+  /////////////////////////////////////////////////////////////////////////////
 
-  outputAFR(afr);
+  outputAFR(engine_afr.currentValue);
 
   if(currentMillis - lastGpsMillis >= GPS_CALC_INTERVAL && currentMillis > 500)
   {
-    checkAndGetGPS();
-    sendGpsToCan();
+    getGpsData();
+    sendGpsDatetimeToCan();
     lastGpsMillis = currentMillis;
   }
 
@@ -303,14 +305,25 @@ void loop() {
   }
 }
 
-void checkAndGetGPS()
+void getGpsData()
 {
-  if(gps.checkUblox() || true)
+  if(true)
   {
     setTime(gps.getHour(), gps.getMinute(), gps.getSecond(), gps.getDay(), gps.getMonth(), gps.getYear());
     adjustTime(timeZoneOffset[timeZoneIndex] * SECS_PER_HOUR);
 
-    if(DEBUG_GPS)
+    //set time with the new adjusted time to prevent it from switching back to UTC
+    //todo figure out the more correct way to do this
+    setTime(hour(), minute(), second(), month(), day(), year());
+
+    gpsDatetime.hour = hour();
+    gpsDatetime.minute = minute();
+    gpsDatetime.second = second();
+    gpsDatetime.month = month();
+    gpsDatetime.day = day();
+    gpsDatetime.year = year();
+
+    if(false)
     {
       long latitude = gps.getLatitude();
       Serial.print(F("Lat: "));
@@ -332,18 +345,18 @@ void checkAndGetGPS()
 
       Serial.println();
 
-      Serial.print(hour());
-      Serial.print(":");
-      Serial.print(minute());
-      Serial.print(":");
-      Serial.print(second());
-      Serial.print(" ");
-      Serial.print(month());
-      Serial.print(" ");
-      Serial.print(day());
-      Serial.print(" ");
-      Serial.print(year()); 
-      Serial.println();
+      // Serial.print(hour());
+      // Serial.print(":");
+      // Serial.print(minute());
+      // Serial.print(":");
+      // Serial.print(second());
+      // Serial.print(" ");
+      // Serial.print(month());
+      // Serial.print(" ");
+      // Serial.print(day());
+      // Serial.print(" ");
+      // Serial.print(year()); 
+      // Serial.println();
     }
   }
 }
@@ -374,7 +387,8 @@ void outputAFR(float afr)
 
 void processCanMessages()
 {
-    engine_afr.currentValue = (double)allCanMessages[MSG_MS_PLUS2]->data[1] / 10.0;
+  vssCounterSafe = vssCounter;  //need this because ISR function may need 2 cycles to write vssCounter (?)
+  engine_afr.currentValue = (double)allCanMessages[MSG_MS_PLUS2]->data[1] / 10.0;
 }
 
 float calculateSpeed() {
@@ -403,18 +417,66 @@ float calculateSpeed() {
   return smoothedMPH;
 }
 
-void sendGpsToCan()
+void sendGpsDatetimeToCan()
 {
+
+  clearBuffer(&txBuffer[0]);
   
+  txBuffer[0] = gpsDatetime.hour;
+  txBuffer[1] = gpsDatetime.minute;
+  txBuffer[2] = gpsDatetime.second;
+  txBuffer[3] = gpsDatetime.month;
+  txBuffer[4] = gpsDatetime.day;
+
+  union
+  {
+    uint16_t year;
+    byte buf[2];
+  } yearUnion;
+  yearUnion.year = gpsDatetime.year;
+  
+  txBuffer[5] = yearUnion.buf[0];
+  txBuffer[6] = yearUnion.buf[1];
+
+  // Serial.print(txBuffer[0]);
+  // Serial.print(" ");
+  // Serial.print(txBuffer[1]);
+  // Serial.print(" ");
+  // Serial.print(txBuffer[2]);
+  // Serial.print(" ");
+  // Serial.print(txBuffer[3]);
+  // Serial.print(" ");
+  // Serial.print(txBuffer[4]);
+  // Serial.print(" ");
+  // Serial.print(txBuffer[5]);
+  // Serial.print(" ");
+  // Serial.print(txBuffer[6]);
+  // Serial.print(" ");
+  // Serial.println(txBuffer[7]);
+
+
+  // Setup CAN packet.
+  txMsg.ctrl.ide = MESSAGE_PROTOCOL;    // Set CAN protocol (0: CAN 2.0A, 1: CAN 2.0B)
+  txMsg.id.std   = CAN_SH_CLK_MSG_ID;   // Set message ID
+  txMsg.dlc      = MESSAGE_LENGTH;      // Data length: 8 bytes
+  txMsg.ctrl.rtr = MESSAGE_RTR;         // Set rtr bit
+  txMsg.pt_data = &txBuffer[0];         // reference message data to transmit buffer
+
+  // Send command to the CAN port controller
+  txMsg.cmd = CMD_TX_DATA;       // send message
+  // Wait for the command to be accepted by the controller
+  while(can_cmd(&txMsg) != CAN_CMD_ACCEPTED);
+  // Wait for command to finish executing
+  while(can_get_status(&txMsg) == CAN_STATUS_NOT_COMPLETED);
 }
 
 void sendVssToCan(float mph) 
 {
   //send vssCounter on the CAN bus to be interpreted as an odometer reading
   //send calculated speed on the CAN bus
-  //send steering mode to the CAN bus in case anyone needs to read the status
 
-  //engine_vss.currentValue = (allCanMessages[MSG_MS_PLUS4]->data[0] * 256 + allCanMessages[MSG_MS_PLUS4]->data[1]) / 10.0;
+  clearBuffer(&txBuffer[0]);
+
 
   uint16_t mphTimesTen = (uint16_t)(mph * 10.0);
   byte byte1 = mphTimesTen / 256;
