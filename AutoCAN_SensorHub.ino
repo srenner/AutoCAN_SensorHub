@@ -18,14 +18,16 @@
 byte const VSS_PIN = 9;                                     //pin 9 on the board corresponds to interrupt 7 on the chip
 
 //other constants
+byte const GPS_CALC_INTERVAL = 100;                         //how long to wait between asking GPS for data
 byte const SPEED_CALC_INTERVAL = 125;                       //read number of pulses approx every 1/8 second
-byte const MPH_BUFFER_LENGTH = 4;                               //length of MPH buffer
+byte const MPH_BUFFER_LENGTH = 4;                           //length of MPH buffer
 
 volatile unsigned long vssCounter = 0;                      //increment pulses in the interrupt function
 unsigned long vssCounterPrevious = 0;                       //used to calculate speed
 unsigned long currentMillis = 0;                            //now
-unsigned long lastMphMillis = 0;                               //used to cut time into slices of SPEED_CALC_INTERVAL
-float mphBuffer[MPH_BUFFER_LENGTH];                             //keep buffer of mph readings (approx .5 second)
+unsigned long lastMphMillis = 0;                            //used to cut time into slices of SPEED_CALC_INTERVAL
+unsigned long lastGpsMillis = 0;                            //used with GPS_CALC_INTERVAL
+float mphBuffer[MPH_BUFFER_LENGTH];                         //keep buffer of mph readings (approx .5 second)
 byte mphBufferIndex = 0;
 
 byte oldAssistValue = 0;
@@ -282,18 +284,21 @@ void loop() {
   float afr = engine_afr.currentValue;
   interrupts();
 
-  //checkAndGetGPS();
   outputAFR(afr);
+
+  if(currentMillis - lastGpsMillis >= GPS_CALC_INTERVAL && currentMillis > 500)
+  {
+    checkAndGetGPS();
+    lastGpsMillis = currentMillis;
+  }
 
   if(currentMillis - lastMphMillis >= SPEED_CALC_INTERVAL && currentMillis > 500)
   {
     float mph = calculateSpeed();
     sendVssToCan(mph); //mph
     lastMphMillis = currentMillis;
-    checkAndGetGPS();
   }
 }
-
 
 void checkAndGetGPS()
 {
@@ -372,7 +377,7 @@ void processCanMessages()
 float calculateSpeed() {
   long pulses = vssCounter - vssCounterPrevious;
   vssCounterPrevious = vssCounter;
-  float pulsesPerSecond = (float)pulses * ((float)1000 / ((float)currentMillis - (float)lastMillis));
+  float pulsesPerSecond = (float)pulses * ((float)1000 / ((float)currentMillis - (float)lastMphMillis));
   float pulsesPerMinute = pulsesPerSecond * 60.0;
   float pulsesPerHour = pulsesPerMinute * 60.0;
   float milesPerHour = pulsesPerHour / (float)VSS_PULSE_PER_MILE;
