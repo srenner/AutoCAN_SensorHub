@@ -24,7 +24,7 @@ byte const MPH_BUFFER_LENGTH = 4;                               //length of MPH 
 volatile unsigned long vssCounter = 0;                      //increment pulses in the interrupt function
 unsigned long vssCounterPrevious = 0;                       //used to calculate speed
 unsigned long currentMillis = 0;                            //now
-unsigned long lastMillis = 0;                               //used to cut time into slices of SPEED_CALC_INTERVAL
+unsigned long lastMphMillis = 0;                               //used to cut time into slices of SPEED_CALC_INTERVAL
 float mphBuffer[MPH_BUFFER_LENGTH];                             //keep buffer of mph readings (approx .5 second)
 byte mphBufferIndex = 0;
 
@@ -177,9 +177,8 @@ void setup() {
   }
 
   gps.setI2COutput(COM_TYPE_UBX); //Set the I2C port to output UBX only (turn off NMEA noise)
-  gps.setNavigationFrequency(10); //Set output to 10 times a second
-  gps.saveConfiguration(); //Save the current settings to flash and BBR
-
+  gps.setNavigationFrequency(20);
+  gps.saveConfiguration();
 
   if (!mcp.begin()) 
   {
@@ -286,13 +285,12 @@ void loop() {
   //checkAndGetGPS();
   outputAFR(afr);
 
-  if(currentMillis - lastMillis >= SPEED_CALC_INTERVAL && currentMillis > 500)
+  if(currentMillis - lastMphMillis >= SPEED_CALC_INTERVAL && currentMillis > 500)
   {
     float mph = calculateSpeed();
     sendVssToCan(mph); //mph
-    lastMillis = currentMillis;
+    lastMphMillis = currentMillis;
     checkAndGetGPS();
-
   }
 }
 
