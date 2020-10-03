@@ -321,7 +321,7 @@ void getGpsData()
     gpsDatetime.day = day();
     gpsDatetime.year = year();
 
-    if(false)
+    if(true)
     {
       long latitude = gps.getLatitude();
       Serial.print(F("Lat: "));
