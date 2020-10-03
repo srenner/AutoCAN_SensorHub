@@ -14,6 +14,7 @@
 #define DEBUG_GPS true
 
 //pins used on board
+byte const TIMEZONE_PIN = 5;                                //each button press cycles through different time zone offsets
 byte const VSS_PIN = 9;                                     //pin 9 on the board corresponds to interrupt 7 on the chip
 
 //other constants
@@ -86,6 +87,13 @@ int8_t timeZoneOffset[5] = {-4, -5, -6, -7, -8};
 uint8_t timeZoneIndex = 1; // change this value with a button, load/save from eeprom
 
 datetime gpsDatetime;
+
+// timing
+
+bool currentButtonValue = 1;
+bool previousButtonValue = 1;
+unsigned long buttonMillis = 0;
+const byte DEBOUNCE_DELAY = 250;
 
 //interrupt routine for interrupt 7 (pin 9) - vss sensor
 ISR(INT7_vect) {
@@ -161,7 +169,7 @@ void fillCanDataBuffer(int index, canData* canTemp)
 void setup() {
   canInit(500000);
   Serial.begin(1000000);
-  //pinMode(AFR_PIN, OUTPUT);
+  pinMode(TIMEZONE_PIN, INPUT_PULLUP);
   pinMode(VSS_PIN, INPUT_PULLUP);
   
   //set trigger for interrupt 7 (pin 9) to be falling edge (see datasheet)
@@ -287,6 +295,25 @@ void loop() {
   /////////////////////////////////////////////////////////////////////////////
 
   outputAFR(engine_afr.currentValue);
+
+  previousButtonValue = currentButtonValue;
+  currentButtonValue = digitalRead(TIMEZONE_PIN);
+  if(currentButtonValue != previousButtonValue) 
+  {
+    if(currentButtonValue == 0) 
+    {
+      buttonMillis = currentMillis;
+      Serial.println("BUTTON PRESSED======================");
+    }
+    else 
+    {
+       if((currentMillis - buttonMillis) < DEBOUNCE_DELAY) 
+       {
+         currentButtonValue = 0;
+       }
+    }
+  }
+
 
   if(currentMillis - lastGpsMillis >= GPS_CALC_INTERVAL && currentMillis > 500)
   {
