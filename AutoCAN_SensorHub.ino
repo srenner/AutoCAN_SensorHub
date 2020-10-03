@@ -14,7 +14,6 @@
 #define DEBUG_GPS true
 
 //pins used on board
-//byte const AFR_PIN = 5;                                     //analog (pwm) afr output for traditional gauge
 byte const VSS_PIN = 9;                                     //pin 9 on the board corresponds to interrupt 7 on the chip
 
 //other constants
@@ -53,8 +52,7 @@ typedef struct {
   uint8_t* data;
 } canData;
 
-
-volatile canData* allCanMessages[5];  //array of all CAN messages we are interested in receiving
+volatile canData* allCanMessages[5];  //array of all MS CAN messages we are interested in receiving
 
 volatile canData canBase;
 volatile canData canPlus1;
@@ -477,14 +475,12 @@ void sendVssToCan(float mph)
 
   clearBuffer(&txBuffer[0]);
 
-
   uint16_t mphTimesTen = (uint16_t)(mph * 10.0);
   byte byte1 = mphTimesTen / 256;
   byte byte2 = mphTimesTen % 256;
 
   txBuffer[0] = byte1;
   txBuffer[1] = byte2;
-
 
   union
   {
@@ -498,7 +494,6 @@ void sendVssToCan(float mph)
   txBuffer[3] = vssUnion.buf[1];
   txBuffer[4] = vssUnion.buf[2];
   txBuffer[5] = vssUnion.buf[3];
-
 
   if(DEBUG_VSS)
   {
@@ -520,8 +515,6 @@ void sendVssToCan(float mph)
     Serial.print(" ");
     Serial.println(txBuffer[7]);
   }
-
-
   
   // Setup CAN packet.
   txMsg.ctrl.ide = MESSAGE_PROTOCOL;    // Set CAN protocol (0: CAN 2.0A, 1: CAN 2.0B)
