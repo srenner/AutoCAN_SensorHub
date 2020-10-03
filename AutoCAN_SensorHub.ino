@@ -361,11 +361,8 @@ void getGpsData()
 
 void outputAFR(float afr)
 {
-  //using a 14.7 Spartan2 wideband controller, which has a linear output
-  //0v = 10afr, 5v = 20afr
-  //many other controllers are the same
+  //configured for a gauge that expects linear output with 0v = 10afr, 5v = 18afr
 
-  //send AFR output to DAC over I2C
   uint8_t afrTimesTen = afr * 10;
   if (afrTimesTen > 180)
   {
