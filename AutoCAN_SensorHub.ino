@@ -7,7 +7,7 @@
 #include "SparkFun_Ublox_Arduino_Library.h"
 #include <TimeLib.h>
 
-#define DEBUG_MPH false
+#define DEBUG_MPH true
 #define DEBUG_CAN false
 #define DEBUG_VSS false
 #define DEBUG_DAC false
@@ -476,11 +476,23 @@ void sendVssToCan(float mph)
   clearBuffer(&txBuffer[0]);
 
   uint16_t mphTimesTen = (uint16_t)(mph * 10.0);
-  byte byte1 = mphTimesTen / 256;
-  byte byte2 = mphTimesTen % 256;
+  
+  union
+  {
+    uint16_t mphTimesTen;
+    byte buf[2];
+  } mphUnion;
 
-  txBuffer[0] = byte1;
-  txBuffer[1] = byte2;
+  mphUnion.mphTimesTen = mphTimesTen;
+  txBuffer[0] = mphUnion.buf[0];
+  txBuffer[1] = mphUnion.buf[1];
+  
+  
+  // byte byte1 = mphTimesTen / 256;
+  // byte byte2 = mphTimesTen % 256;
+
+  // txBuffer[0] = byte1;
+  // txBuffer[1] = byte2;
 
   union
   {
