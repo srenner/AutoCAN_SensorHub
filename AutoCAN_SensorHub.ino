@@ -304,6 +304,12 @@ void loop() {
     {
       buttonMillis = currentMillis;
       Serial.println("BUTTON PRESSED======================");
+      timeZoneIndex++;
+      if(timeZoneIndex > 4)
+      {
+        timeZoneIndex = 0;
+      }
+      //write to eeprom
     }
     else 
     {
@@ -350,38 +356,38 @@ void getGpsData()
 
     if(true)
     {
-      long latitude = gps.getLatitude();
-      Serial.print(F("Lat: "));
-      Serial.print(latitude);
+      // long latitude = gps.getLatitude();
+      // Serial.print(F("Lat: "));
+      // Serial.print(latitude);
 
-      long longitude = gps.getLongitude();
-      Serial.print(F(" Long: "));
-      Serial.print(longitude);
-      Serial.print(F(" (degrees * 10^-7)"));
+      // long longitude = gps.getLongitude();
+      // Serial.print(F(" Long: "));
+      // Serial.print(longitude);
+      // Serial.print(F(" (degrees * 10^-7)"));
 
-      long altitude = gps.getAltitude();
-      Serial.print(F(" Alt: "));
-      Serial.print(altitude);
-      Serial.print(F(" (mm)"));
+      // long altitude = gps.getAltitude();
+      // Serial.print(F(" Alt: "));
+      // Serial.print(altitude);
+      // Serial.print(F(" (mm)"));
 
-      byte SIV = gps.getSIV();
-      Serial.print(F(" SIV: "));
-      Serial.print(SIV);
+      // byte SIV = gps.getSIV();
+      // Serial.print(F(" SIV: "));
+      // Serial.print(SIV);
 
-      Serial.println();
-
-      // Serial.print(hour());
-      // Serial.print(":");
-      // Serial.print(minute());
-      // Serial.print(":");
-      // Serial.print(second());
-      // Serial.print(" ");
-      // Serial.print(month());
-      // Serial.print(" ");
-      // Serial.print(day());
-      // Serial.print(" ");
-      // Serial.print(year()); 
       // Serial.println();
+
+      Serial.print(hour());
+      Serial.print(":");
+      Serial.print(minute());
+      Serial.print(":");
+      Serial.print(second());
+      Serial.print(" ");
+      Serial.print(month());
+      Serial.print(" ");
+      Serial.print(day());
+      Serial.print(" ");
+      Serial.print(year()); 
+      Serial.println();
     }
   }
 }
