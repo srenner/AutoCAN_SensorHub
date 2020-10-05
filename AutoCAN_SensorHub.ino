@@ -9,6 +9,7 @@
 #include <Adafruit_LSM303_Accel.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_LSM303DLH_Mag.h>
+#include <EEPROM.h>
 
 #define DEBUG_MPH true
 #define DEBUG_CAN false
@@ -94,6 +95,7 @@ Adafruit_MCP4728 mcp;
 SFE_UBLOX_GPS gps;
 int8_t timeZoneOffset[5] = {-4, -5, -6, -7, -8};
 uint8_t timeZoneIndex = 1; // change this value with a button, load/save from eeprom
+const uint8_t eepromAddressTimezone = 0;
 
 datetime gpsDatetime;
 
@@ -194,6 +196,8 @@ void setup() {
   //enable interrupt 7 (pin 9) (see datasheet)
   EIMSK |= ( 1 << INT7);
   
+  timeZoneIndex = EEPROM.read(eepromAddressTimezone);
+
   Wire.begin();
   delay(100); //give time for gps to wake up to prevent program hangs
   if (gps.begin() == false) //Connect to the Ublox module using Wire port
@@ -340,6 +344,7 @@ void loop() {
         timeZoneIndex = 0;
       }
       //write to eeprom
+      EEPROM.write(eepromAddressTimezone, timeZoneIndex);
     }
     else 
     {
