@@ -11,11 +11,12 @@
 #include <Adafruit_LSM303DLH_Mag.h>
 #include <EEPROM.h>
 
-#define DEBUG_MPH true
+#define DEBUG_PROD true
+#define DEBUG_MPH false
 #define DEBUG_CAN false
 #define DEBUG_VSS false
 #define DEBUG_DAC false
-#define DEBUG_GPS true
+#define DEBUG_GPS false
 #define DEBUG_ACCEL false
 #define DEBUG_COMPASS false
 
@@ -34,12 +35,14 @@ byte const ACCEL_INTERVAL = 50;           //time between reading accelerometer
 byte const SPEED_CALC_INTERVAL = 125;     //read number of pulses approx every 1/8 second
 byte const MPH_BUFFER_LENGTH = 4;         //length of MPH buffer
 byte const COMPASS_INTERVAL = 200;        //how long to wait between compass checks
+uint16_t const PROD_INTERVAL = 1000;      //prod debug message interval
 
 unsigned long currentMillis = 0;          //now
 unsigned long lastMphMillis = 0;          //used to cut time into slices of SPEED_CALC_INTERVAL
 unsigned long lastGpsMillis = 0;          //used with GPS_CALC_INTERVAL
 unsigned long lastAccelMillis = 0;        //used with ACCEL_INTERVAL
 unsigned long lastCompassMillis = 0;      //used with COMPASS_INTERVAL
+unsigned long lastProdMillis = 0;         //used with PROD_INTERVAL
 
 // Variables for calculating MPH ///////////////////////////////////////////////
 
@@ -48,6 +51,7 @@ unsigned long vssCounterSafe = 0;         //vss pulses that won't be corrupted b
 unsigned long vssCounterPrevious = 0;     //used to calculate speed
 float mphBuffer[MPH_BUFFER_LENGTH];       //keep buffer of mph readings (approx .5 second)
 byte mphBufferIndex = 0;
+float mph = 0.0;
 
 // Generic CAN bus variables ///////////////////////////////////////////////////
 
@@ -92,6 +96,7 @@ uint8_t txBuffer[8] = {0,0,0,0,0,0,0,0};
 // DAC variables ///////////////////////////////////////////////////////////////
 
 Adafruit_MCP4728 dac;
+uint16_t analogAfrOutput = 0;
 
 // GPS variables ///////////////////////////////////////////////////////////////
 
@@ -100,6 +105,9 @@ int8_t timeZoneOffset[5] = {-4, -5, -6, -7, -8};
 uint8_t timeZoneIndex = 1; // change this value with a button, load/save from eeprom
 const uint8_t eepromAddressTimezone = 0;
 datetime gpsDatetime;
+long longitude = 1;
+long latitude = 1;
+long altitude = 1;
 
 // Button press variables //////////////////////////////////////////////////////
 
@@ -111,8 +119,13 @@ const byte DEBOUNCE_DELAY = 250;
 // Accelerometer & compass variables ///////////////////////////////////////////
 
 Adafruit_LSM303_Accel_Unified accel = Adafruit_LSM303_Accel_Unified(11223);
+float accelX = 0.0;
+float accelY = 0.0;
+float accelZ = 0.0;
 
 Adafruit_LSM303DLH_Mag_Unified mag = Adafruit_LSM303DLH_Mag_Unified(22334);
+float compassHeading = 0.0;
+char* compassDirection = "";
 
 // END GLOBAL VARIABLES ////////////////////////////////////////////////////////
 
@@ -360,7 +373,7 @@ void loop() {
 
   if(currentMillis - lastMphMillis >= SPEED_CALC_INTERVAL && currentMillis > 500)
   {
-    float mph = calculateSpeed();
+    mph = calculateSpeed();
     sendVssToCan(mph); //mph
     lastMphMillis = currentMillis;
   }
@@ -370,17 +383,21 @@ void loop() {
     sensors_event_t event;
     accel.getEvent(&event);
 
+    accelX = event.acceleration.x;
+    accelY = event.acceleration.y;
+    accelZ = event.acceleration.z;
+
     if(DEBUG_ACCEL)
     {
       /* Display the results (acceleration is measured in m/s^2) */
       Serial.print("X: ");
-      Serial.print(event.acceleration.x);
+      Serial.print(accelX);
       Serial.print("  ");
       Serial.print("Y: ");
-      Serial.print(event.acceleration.y);
+      Serial.print(accelY);
       Serial.print("  ");
       Serial.print("Z: ");
-      Serial.print(event.acceleration.z);
+      Serial.print(accelZ);
       Serial.print("  ");
       Serial.println("m/s^2");
     }
@@ -395,29 +412,73 @@ void loop() {
     float Pi = 3.14159;
 
     // Calculate the angle of the vector y,x
-    float heading = (atan2(event.magnetic.y, event.magnetic.x) * 180) / Pi;
+    compassHeading = (atan2(event.magnetic.y, event.magnetic.x) * 180) / Pi;
 
     // Normalize to 0-360
-    if (heading < 0) {
-      heading = 360 + heading;
+    if (compassHeading < 0) {
+      compassHeading = 360 + compassHeading;
     }
 
     if(DEBUG_COMPASS)
     {
       Serial.print("Compass Heading: ");
-      Serial.print(heading);
+      Serial.print(compassHeading);
       Serial.print(" (");
     }
 
-    char* headingText = getCompassDirection(heading);
+    compassDirection = getCompassDirection(compassHeading);
     
     if(DEBUG_COMPASS)
     {
-      Serial.print(headingText);
+      Serial.print(compassDirection);
       Serial.println(")");
     }
 
     lastCompassMillis = currentMillis;
+  }
+
+  
+  if(DEBUG_PROD && currentMillis - lastProdMillis >= PROD_INTERVAL && currentMillis > 500)
+  {
+    char formattedTime[9];
+    sprintf(formattedTime, "%02d:%02d:%02d", gpsDatetime.hour, gpsDatetime.minute, gpsDatetime.second);
+    Serial.print(formattedTime);
+
+    char formattedDate[11];
+    sprintf(formattedDate, "%02d/%02d/%04d", gpsDatetime.month, gpsDatetime.day, gpsDatetime.year);
+    Serial.print(" ");
+    Serial.println(formattedDate);
+
+    Serial.print("Accel X: ");
+    Serial.println(accelX);
+
+    Serial.print("Accel Y: ");
+    Serial.println(accelY);
+
+    Serial.print("Accel Z: ");
+    Serial.println(accelZ);
+
+    Serial.print("MPH: ");
+    Serial.println(mph);
+
+    Serial.print("AFR analog output: ");
+    Serial.println(analogAfrOutput);
+
+    Serial.print("Longitude: ");
+    Serial.println(longitude);
+
+    Serial.print("Latitude: ");
+    Serial.println(latitude);
+
+    Serial.print("Altitude: ");
+    Serial.println(altitude);
+
+
+
+
+
+    Serial.println("====================");
+    lastProdMillis = currentMillis;
   }
 
 }
@@ -470,7 +531,7 @@ void getGpsData()
 
     //set time with the new adjusted time to prevent it from switching back to UTC
     //todo figure out the more correct way to do this
-    setTime(hour(), minute(), second(), month(), day(), year());
+    setTime(hour(), minute(), second(), day(), month(), year());
 
     gpsDatetime.hour = hour();
     gpsDatetime.minute = minute();
@@ -479,23 +540,24 @@ void getGpsData()
     gpsDatetime.day = day();
     gpsDatetime.year = year();
 
+    latitude = gps.getLatitude();
+    longitude = gps.getLongitude();
+    altitude = gps.getAltitude();
+    byte SIV = gps.getSIV();
+
     if(DEBUG_GPS)
     {
-      long latitude = gps.getLatitude();
       Serial.print(F("Lat: "));
       Serial.print(latitude);
 
-      long longitude = gps.getLongitude();
       Serial.print(F(" Long: "));
       Serial.print(longitude);
       Serial.print(F(" (degrees * 10^-7)"));
 
-      long altitude = gps.getAltitude();
       Serial.print(F(" Alt: "));
       Serial.print(altitude);
       Serial.print(F(" (mm)"));
 
-      byte SIV = gps.getSIV();
       Serial.print(F(" SIV: "));
       Serial.print(SIV);
 
@@ -530,11 +592,11 @@ void outputAFR(float afr)
   {
     afrTimesTen = 100;
   }
-  uint16_t output = map(afrTimesTen, 100, 180, 0, 4095);
-  dac.setChannelValue(MCP4728_CHANNEL_A, output);
+  analogAfrOutput = map(afrTimesTen, 100, 180, 0, 4095);
+  dac.setChannelValue(MCP4728_CHANNEL_A, analogAfrOutput);
   if(DEBUG_DAC)
   {
-    Serial.println(output);
+    Serial.println(analogAfrOutput);
   }
 }
 
