@@ -14,7 +14,9 @@
 #define DEBUG_CAN false
 #define DEBUG_VSS false
 #define DEBUG_DAC false
-#define DEBUG_GPS false
+#define DEBUG_GPS true
+#define DEBUG_ACCEL false
+#define DEBUG_COMPASS false
 
 //pins used on board
 byte const TIMEZONE_PIN = 5;                                //each button press cycles through different time zone offsets
@@ -368,7 +370,7 @@ void loop() {
     sensors_event_t event;
     accel.getEvent(&event);
 
-    if(true)
+    if(DEBUG_ACCEL)
     {
       /* Display the results (acceleration is measured in m/s^2) */
       Serial.print("X: ");
@@ -399,17 +401,24 @@ void loop() {
     if (heading < 0) {
       heading = 360 + heading;
     }
-    Serial.print("Compass Heading: ");
-    Serial.print(heading);
-    Serial.print(" (");
+
+    if(DEBUG_COMPASS)
+    {
+      Serial.print("Compass Heading: ");
+      Serial.print(heading);
+      Serial.print(" (");
+    }
 
     char* headingText = getCompassDirection(heading);
     
-    Serial.print(headingText);
-    Serial.println(")");
+    if(DEBUG_COMPASS)
+    {
+      Serial.print(headingText);
+      Serial.println(")");
+    }
+
     lastCompassMillis = currentMillis;
   }
-
 
 }
 
