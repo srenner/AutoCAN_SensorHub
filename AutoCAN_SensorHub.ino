@@ -19,32 +19,37 @@
 #define DEBUG_ACCEL false
 #define DEBUG_COMPASS false
 
-//pins used on board
-byte const TIMEZONE_PIN = 5;                                //each button press cycles through different time zone offsets
-byte const VSS_PIN = 9;                                     //pin 9 on the board corresponds to interrupt 7 on the chip
+void(* reset) (void) = 0;
 
-//other constants
-byte const GPS_CALC_INTERVAL = 100;                         //how long to wait between asking GPS for data
-byte const ACCEL_INTERVAL = 50;                             //time between reading accelerometer
-byte const SPEED_CALC_INTERVAL = 125;                       //read number of pulses approx every 1/8 second
-byte const MPH_BUFFER_LENGTH = 4;                           //length of MPH buffer
-byte const COMPASS_INTERVAL = 200;
+// Pins used on board //////////////////////////////////////////////////////////
 
-volatile unsigned long vssCounter = 0;                      //increment pulses in the interrupt function
-unsigned long vssCounterSafe = 0;                           //vss pulses that won't be corrupted by an interrupt
-unsigned long vssCounterPrevious = 0;                       //used to calculate speed
-unsigned long currentMillis = 0;                            //now
-unsigned long lastMphMillis = 0;                            //used to cut time into slices of SPEED_CALC_INTERVAL
-unsigned long lastGpsMillis = 0;                            //used with GPS_CALC_INTERVAL
-unsigned long lastAccelMillis = 0;                          //used with ACCEL_INTERVAL
-unsigned long lastCompassMillis = 0;                        //used with COMPASS_INTERVAL
-float mphBuffer[MPH_BUFFER_LENGTH];                         //keep buffer of mph readings (approx .5 second)
+//pins 2-4 used for I2C
+byte const TIMEZONE_PIN = 5;              //each button press cycles through different time zone offsets
+byte const VSS_PIN = 9;                   //pin 9 on the board corresponds to interrupt 7 on the chip
+
+// Variables for timing ////////////////////////////////////////////////////////
+
+byte const GPS_CALC_INTERVAL = 100;       //how long to wait between asking GPS for data
+byte const ACCEL_INTERVAL = 50;           //time between reading accelerometer
+byte const SPEED_CALC_INTERVAL = 125;     //read number of pulses approx every 1/8 second
+byte const MPH_BUFFER_LENGTH = 4;         //length of MPH buffer
+byte const COMPASS_INTERVAL = 200;        //how long to wait between compass checks
+
+unsigned long currentMillis = 0;          //now
+unsigned long lastMphMillis = 0;          //used to cut time into slices of SPEED_CALC_INTERVAL
+unsigned long lastGpsMillis = 0;          //used with GPS_CALC_INTERVAL
+unsigned long lastAccelMillis = 0;        //used with ACCEL_INTERVAL
+unsigned long lastCompassMillis = 0;      //used with COMPASS_INTERVAL
+
+// Variables for calculating MPH ///////////////////////////////////////////////
+
+volatile unsigned long vssCounter = 0;    //increment pulses in the interrupt function
+unsigned long vssCounterSafe = 0;         //vss pulses that won't be corrupted by an interrupt
+unsigned long vssCounterPrevious = 0;     //used to calculate speed
+float mphBuffer[MPH_BUFFER_LENGTH];       //keep buffer of mph readings (approx .5 second)
 byte mphBufferIndex = 0;
 
-byte oldAssistValue = 0;
-byte newAssistValue = 0;
-
-//can bus variables ////////////////////////////////////////////////////////////
+// Generic CAN bus variables ///////////////////////////////////////////////////
 
 uint8_t canBuffer[8] = {};
 
@@ -63,60 +68,60 @@ typedef struct {
   uint8_t* data;
 } canData;
 
-volatile canData* allCanMessages[5];  //array of all MS CAN messages we are interested in receiving
+// Variables for MegaSquirt CAN messages ///////////////////////////////////////
 
+volatile canData* allCanMessages[5];
 volatile canData canBase;
 volatile canData canPlus1;
 volatile canData canPlus2;
 volatile canData canPlus3;
 volatile canData canPlus4;
-
 uint8_t canBufferBase[8] = {};
 uint8_t canBufferPlus1[8] = {};
 uint8_t canBufferPlus2[8] = {};
 uint8_t canBufferPlus3[8] = {};
 uint8_t canBufferPlus4[8] = {};
-
 volatile canData canTemp;
 uint8_t canBufferTemp[8] = {};
 
-// can objects for sending messages
+// CAN objects for sending messages ////////////////////////////////////////////
+
 st_cmd_t txMsg;
 uint8_t txBuffer[8] = {0,0,0,0,0,0,0,0};
 
-unsigned long vssCanTest = 0;
+// DAC variables ///////////////////////////////////////////////////////////////
 
-// DAC stuff
+Adafruit_MCP4728 dac;
 
-Adafruit_MCP4728 mcp;
-
-// GPS stuff
+// GPS variables ///////////////////////////////////////////////////////////////
 
 SFE_UBLOX_GPS gps;
 int8_t timeZoneOffset[5] = {-4, -5, -6, -7, -8};
 uint8_t timeZoneIndex = 1; // change this value with a button, load/save from eeprom
 const uint8_t eepromAddressTimezone = 0;
-
 datetime gpsDatetime;
 
-// timing
+// Button press variables //////////////////////////////////////////////////////
 
 bool currentButtonValue = 1;
 bool previousButtonValue = 1;
 unsigned long buttonMillis = 0;
 const byte DEBOUNCE_DELAY = 250;
 
-//accelerometer & compass
+// Accelerometer & compass variables ///////////////////////////////////////////
 
 Adafruit_LSM303_Accel_Unified accel = Adafruit_LSM303_Accel_Unified(11223);
 
 Adafruit_LSM303DLH_Mag_Unified mag = Adafruit_LSM303DLH_Mag_Unified(22334);
+
+// END GLOBAL VARIABLES ////////////////////////////////////////////////////////
 
 //interrupt routine for interrupt 7 (pin 9) - vss sensor
 ISR(INT7_vect) {
   vssCounter++;
 }
 
+//interrupt routine for receiving CAN bus messages
 ISR(CANIT_vect) {
   canCount++;
 
@@ -169,7 +174,7 @@ ISR(CANIT_vect) {
         vssCounter++;
         break;
       default:
-        vssCanTest++;
+        canUnhandledCount++;
         break;
     }
   }
@@ -202,27 +207,28 @@ void setup() {
   delay(100); //give time for gps to wake up to prevent program hangs
   if (gps.begin() == false) //Connect to the Ublox module using Wire port
   {
-    Serial.println(F("Ublox GPS not detected at default I2C address. Check wiring."));
-    while(1);
+    Serial.println(F("GPS not found."));
+    delay(1000);
+    reset();
   }
 
   gps.setI2COutput(COM_TYPE_UBX); //Set the I2C port to output UBX only (turn off NMEA noise)
   gps.setNavigationFrequency(20);
   gps.saveConfiguration();
 
-  if (!mcp.begin()) 
+  if (!dac.begin()) 
   {
-    if(DEBUG_DAC)
-    {
-      Serial.println("Failed to find MCP4728 chip");
-    }
+    Serial.println("MCP4728 (DAC) not found.");
+    delay(1000);
+    reset();
   }
 
   if (!accel.begin()) 
   {
     /* There was a problem detecting the ADXL345 ... check your connections */
-    Serial.println("No LSM303 detected. Check wiring.");
-    while (1);
+    Serial.println("LSM303 (accelerometer) not found.");
+    delay(1000);
+    reset();
   }
 
   accel.setRange(LSM303_RANGE_2G);
@@ -230,11 +236,10 @@ void setup() {
 
   if (!mag.begin()) 
   {
-    Serial.println("No LSM303 detected. Check wiring.");
-    while (1);
+    Serial.println("LSM303 (compass) not found.");
+    delay(1000);
+    reset();
   }
-
-
 
   #pragma region setup can bus
 
@@ -306,15 +311,7 @@ void setup() {
 
   while(can_cmd(&canMsg) != CAN_CMD_ACCEPTED);
 
-  if(DEBUG_CAN)
-  {
-    Serial.println("CAN bus initialized");
-  }
-
   #pragma endregion
-
-
-
 
   Serial.println("Finished initialization");
 }
@@ -322,11 +319,11 @@ void setup() {
 void loop() {
   currentMillis = millis();
 
-  /////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
   noInterrupts();
   processCanMessages(); //take remote data from CAN bus interrupt and put it in variables
   interrupts();
-  /////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
 
   outputAFR(engine_afr.currentValue);
 
@@ -343,7 +340,6 @@ void loop() {
       {
         timeZoneIndex = 0;
       }
-      //write to eeprom
       EEPROM.write(eepromAddressTimezone, timeZoneIndex);
     }
     else 
@@ -354,7 +350,6 @@ void loop() {
        }
     }
   }
-
 
   if(currentMillis - lastGpsMillis >= GPS_CALC_INTERVAL && currentMillis > 500)
   {
@@ -524,7 +519,7 @@ void getGpsData()
 
 void outputAFR(float afr)
 {
-  //configured for a gauge that expects linear output with 0v = 10afr, 5v = 18afr
+  //Configured for a gauge that expects linear output with 0v = 10afr, 5v = 18afr
 
   uint8_t afrTimesTen = afr * 10;
   if (afrTimesTen > 180)
@@ -536,7 +531,7 @@ void outputAFR(float afr)
     afrTimesTen = 100;
   }
   uint16_t output = map(afrTimesTen, 100, 180, 0, 4095);
-  mcp.setChannelValue(MCP4728_CHANNEL_A, output);
+  dac.setChannelValue(MCP4728_CHANNEL_A, output);
   if(DEBUG_DAC)
   {
     Serial.println(output);
@@ -577,7 +572,6 @@ float calculateSpeed() {
 
 void sendGpsDatetimeToCan()
 {
-
   clearBuffer(&txBuffer[0]);
   
   txBuffer[0] = gpsDatetime.hour;
@@ -611,7 +605,6 @@ void sendGpsDatetimeToCan()
   // Serial.print(txBuffer[6]);
   // Serial.print(" ");
   // Serial.println(txBuffer[7]);
-
 
   // Setup CAN packet.
   txMsg.ctrl.ide = MESSAGE_PROTOCOL;    // Set CAN protocol (0: CAN 2.0A, 1: CAN 2.0B)
@@ -647,13 +640,6 @@ void sendVssToCan(float mph)
   txBuffer[0] = mphUnion.buf[0];
   txBuffer[1] = mphUnion.buf[1];
   
-  
-  // byte byte1 = mphTimesTen / 256;
-  // byte byte2 = mphTimesTen % 256;
-
-  // txBuffer[0] = byte1;
-  // txBuffer[1] = byte2;
-
   union
   {
     long vss;
