@@ -6,12 +6,15 @@
 #include <Wire.h>
 #include "SparkFun_Ublox_Arduino_Library.h"
 #include <TimeLib.h>
+#include <Adafruit_LSM303_Accel.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_LSM303DLH_Mag.h>
 
 #define DEBUG_MPH true
 #define DEBUG_CAN false
 #define DEBUG_VSS false
 #define DEBUG_DAC false
-#define DEBUG_GPS true
+#define DEBUG_GPS false
 
 //pins used on board
 byte const TIMEZONE_PIN = 5;                                //each button press cycles through different time zone offsets
@@ -19,8 +22,10 @@ byte const VSS_PIN = 9;                                     //pin 9 on the board
 
 //other constants
 byte const GPS_CALC_INTERVAL = 100;                         //how long to wait between asking GPS for data
+byte const ACCEL_INTERVAL = 50;                             //time between reading accelerometer
 byte const SPEED_CALC_INTERVAL = 125;                       //read number of pulses approx every 1/8 second
 byte const MPH_BUFFER_LENGTH = 4;                           //length of MPH buffer
+byte const COMPASS_INTERVAL = 200;
 
 volatile unsigned long vssCounter = 0;                      //increment pulses in the interrupt function
 unsigned long vssCounterSafe = 0;                           //vss pulses that won't be corrupted by an interrupt
@@ -28,6 +33,8 @@ unsigned long vssCounterPrevious = 0;                       //used to calculate 
 unsigned long currentMillis = 0;                            //now
 unsigned long lastMphMillis = 0;                            //used to cut time into slices of SPEED_CALC_INTERVAL
 unsigned long lastGpsMillis = 0;                            //used with GPS_CALC_INTERVAL
+unsigned long lastAccelMillis = 0;                          //used with ACCEL_INTERVAL
+unsigned long lastCompassMillis = 0;                        //used with COMPASS_INTERVAL
 float mphBuffer[MPH_BUFFER_LENGTH];                         //keep buffer of mph readings (approx .5 second)
 byte mphBufferIndex = 0;
 
@@ -94,6 +101,12 @@ bool currentButtonValue = 1;
 bool previousButtonValue = 1;
 unsigned long buttonMillis = 0;
 const byte DEBOUNCE_DELAY = 250;
+
+//accelerometer & compass
+
+Adafruit_LSM303_Accel_Unified accel = Adafruit_LSM303_Accel_Unified(11223);
+
+Adafruit_LSM303DLH_Mag_Unified mag = Adafruit_LSM303DLH_Mag_Unified(22334);
 
 //interrupt routine for interrupt 7 (pin 9) - vss sensor
 ISR(INT7_vect) {
@@ -180,11 +193,11 @@ void setup() {
   EIMSK |= ( 1 << INT7);
   
   Wire.begin();
-
+  delay(100); //give time for gps to wake up to prevent program hangs
   if (gps.begin() == false) //Connect to the Ublox module using Wire port
   {
-    Serial.println(F("Ublox GPS not detected at default I2C address. Please check wiring. Freezing."));
-    while (1);
+    Serial.println(F("Ublox GPS not detected at default I2C address. Check wiring."));
+    while(1);
   }
 
   gps.setI2COutput(COM_TYPE_UBX); //Set the I2C port to output UBX only (turn off NMEA noise)
@@ -199,6 +212,21 @@ void setup() {
     }
   }
 
+  if (!accel.begin()) 
+  {
+    /* There was a problem detecting the ADXL345 ... check your connections */
+    Serial.println("No LSM303 detected. Check wiring.");
+    while (1);
+  }
+
+  accel.setRange(LSM303_RANGE_2G);
+  accel.setMode(LSM303_MODE_HIGH_RESOLUTION);
+
+  if (!mag.begin()) 
+  {
+    Serial.println("No LSM303 detected. Check wiring.");
+    while (1);
+  }
 
 
 
@@ -334,6 +362,94 @@ void loop() {
     sendVssToCan(mph); //mph
     lastMphMillis = currentMillis;
   }
+
+  if(currentMillis - lastAccelMillis >= ACCEL_INTERVAL && currentMillis > 500)
+  {
+    sensors_event_t event;
+    accel.getEvent(&event);
+
+    if(true)
+    {
+      /* Display the results (acceleration is measured in m/s^2) */
+      Serial.print("X: ");
+      Serial.print(event.acceleration.x);
+      Serial.print("  ");
+      Serial.print("Y: ");
+      Serial.print(event.acceleration.y);
+      Serial.print("  ");
+      Serial.print("Z: ");
+      Serial.print(event.acceleration.z);
+      Serial.print("  ");
+      Serial.println("m/s^2");
+    }
+    lastAccelMillis = currentMillis;
+  }
+
+  if(currentMillis - lastCompassMillis >= COMPASS_INTERVAL && currentMillis > 500)
+  {
+    sensors_event_t event;
+    mag.getEvent(&event);
+
+    float Pi = 3.14159;
+
+    // Calculate the angle of the vector y,x
+    float heading = (atan2(event.magnetic.y, event.magnetic.x) * 180) / Pi;
+
+    // Normalize to 0-360
+    if (heading < 0) {
+      heading = 360 + heading;
+    }
+    Serial.print("Compass Heading: ");
+    Serial.print(heading);
+    Serial.print(" (");
+
+    char* headingText = getCompassDirection(heading);
+    
+    Serial.print(headingText);
+    Serial.println(")");
+    lastCompassMillis = currentMillis;
+  }
+
+
+}
+
+char* getCompassDirection(float heading)
+{
+    char* headingText;
+
+    if(heading >= 330.0 || heading <= 30.0)
+    {
+      headingText = "N";
+    }
+    else if(heading >= 30.1 && heading <= 59.9)
+    {
+      headingText = "NE";
+    }
+    else if(heading >= 60.0 && heading <= 120.0)
+    {
+      headingText = "E";
+    }
+    else if(heading >= 120.1 && heading <= 149.9)
+    {
+      headingText = "SE";
+    }
+    else if(heading >= 150.0 && heading <= 210.0)
+    {
+      headingText = "S";
+    }
+    else if(heading >= 210.1 && heading <= 239.9)
+    {
+      headingText = "SW";
+    }
+    else if(heading >= 240.0 && heading <= 300.0)
+    {
+      headingText = "W";
+    }
+    else if(heading >= 300.1 && heading <= 329.9)
+    {
+      headingText = "NW";
+    }
+    return headingText;
 }
 
 void getGpsData()
@@ -354,27 +470,27 @@ void getGpsData()
     gpsDatetime.day = day();
     gpsDatetime.year = year();
 
-    if(true)
+    if(DEBUG_GPS)
     {
-      // long latitude = gps.getLatitude();
-      // Serial.print(F("Lat: "));
-      // Serial.print(latitude);
+      long latitude = gps.getLatitude();
+      Serial.print(F("Lat: "));
+      Serial.print(latitude);
 
-      // long longitude = gps.getLongitude();
-      // Serial.print(F(" Long: "));
-      // Serial.print(longitude);
-      // Serial.print(F(" (degrees * 10^-7)"));
+      long longitude = gps.getLongitude();
+      Serial.print(F(" Long: "));
+      Serial.print(longitude);
+      Serial.print(F(" (degrees * 10^-7)"));
 
-      // long altitude = gps.getAltitude();
-      // Serial.print(F(" Alt: "));
-      // Serial.print(altitude);
-      // Serial.print(F(" (mm)"));
+      long altitude = gps.getAltitude();
+      Serial.print(F(" Alt: "));
+      Serial.print(altitude);
+      Serial.print(F(" (mm)"));
 
-      // byte SIV = gps.getSIV();
-      // Serial.print(F(" SIV: "));
-      // Serial.print(SIV);
+      byte SIV = gps.getSIV();
+      Serial.print(F(" SIV: "));
+      Serial.print(SIV);
 
-      // Serial.println();
+      Serial.println();
 
       Serial.print(hour());
       Serial.print(":");
