@@ -217,11 +217,10 @@ void setup() {
   timeZoneIndex = EEPROM.read(eepromAddressTimezone);
 
   Wire.begin();
-  delay(100); //give time for gps to wake up to prevent program hangs
+  delay(200); //give time for gps to wake up to prevent program hangs
   if (gps.begin() == false) //Connect to the Ublox module using Wire port
   {
     Serial.println(F("GPS not found."));
-    delay(1000);
     reset();
   }
 
