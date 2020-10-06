@@ -25,8 +25,9 @@ void(* reset) (void) = 0;
 // Pins used on board //////////////////////////////////////////////////////////
 
 //pins 2-4 used for I2C
-byte const TIMEZONE_PIN = 5;              //each button press cycles through different time zone offsets
-byte const VSS_PIN = 9;                   //pin 9 on the board corresponds to interrupt 7 on the chip
+uint8_t const TIMEZONE_PIN = 5;           //each button press cycles through different time zone offsets
+uint8_t const VSS_PIN = 9;                //pin 9 on the board corresponds to interrupt 7 on the chip
+uint8_t const FPR_PIN = 15;               //analog input for fuel pressure
 
 // Variables for timing ////////////////////////////////////////////////////////
 
@@ -127,6 +128,11 @@ float accelZ = 0.0;
 Adafruit_LSM303DLH_Mag_Unified mag = Adafruit_LSM303DLH_Mag_Unified(22334);
 float compassHeading = 0.0;
 char* compassDirection = "";
+
+// Fuel pressure variables /////////////////////////////////////////////////////
+
+uint16_t fprRaw = 0;
+uint16_t fprPsi = 0;
 
 // END GLOBAL VARIABLES ////////////////////////////////////////////////////////
 
@@ -378,6 +384,8 @@ void loop() {
     lastMphMillis = currentMillis;
   }
 
+  getFprData();
+
   if(currentMillis - lastAccelMillis >= ACCEL_INTERVAL && currentMillis > 500)
   {
     sensors_event_t event;
@@ -481,6 +489,22 @@ void loop() {
     lastProdMillis = currentMillis;
   }
 
+}
+
+void getFprData()
+{
+  fprRaw = analogRead(FPR_PIN);
+  uint16_t fprVoltage = map(fprRaw, 0, 1023, 0, 500);
+  if(fprVoltage < 50)
+  {
+    fprVoltage = 50;
+  }
+  if(fprVoltage > 450)
+  {
+    fprVoltage = 450;
+  }
+  fprPsi = map(fprVoltage, 50, 450, 0, 100);
+  Serial.println(fprPsi);
 }
 
 char* getCompassDirection(float heading)
