@@ -105,9 +105,10 @@ int8_t timeZoneOffset[5] = {-4, -5, -6, -7, -8};
 uint8_t timeZoneIndex = 1; // change this value with a button, load/save from eeprom
 const uint8_t eepromAddressTimezone = 0;
 datetime gpsDatetime;
-long longitude = 1;
-long latitude = 1;
-long altitude = 1;
+time_t previousTime = 0; // when the digital clock was displayed
+long longitude = 0;
+long latitude = 0;
+long altitude = 0;
 
 // Button press variables //////////////////////////////////////////////////////
 
@@ -528,16 +529,22 @@ void getGpsData()
     setTime(gps.getHour(), gps.getMinute(), gps.getSecond(), gps.getDay(), gps.getMonth(), gps.getYear());
     adjustTime(timeZoneOffset[timeZoneIndex] * SECS_PER_HOUR);
 
-    //set time with the new adjusted time to prevent it from switching back to UTC
-    //todo figure out the more correct way to do this
-    setTime(hour(), minute(), second(), day(), month(), year());
 
-    gpsDatetime.hour = hour();
-    gpsDatetime.minute = minute();
-    gpsDatetime.second = second();
-    gpsDatetime.month = month();
-    gpsDatetime.day = day();
-    gpsDatetime.year = year();
+    if (timeStatus()!= timeNotSet) {
+      if (now() != previousTime) { //update the display only if the time has changed
+        previousTime = now();
+
+        gpsDatetime.hour = hour();
+        gpsDatetime.minute = minute();
+        gpsDatetime.second = second();
+        gpsDatetime.month = month();
+        gpsDatetime.day = day();
+        gpsDatetime.year = year();
+
+      }
+    }
+
+
 
     latitude = gps.getLatitude();
     longitude = gps.getLongitude();
