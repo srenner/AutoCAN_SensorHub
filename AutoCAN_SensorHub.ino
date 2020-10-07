@@ -31,12 +31,13 @@ uint8_t const FPR_PIN = 15;               //analog input for fuel pressure
 
 // Variables for timing ////////////////////////////////////////////////////////
 
-byte const GPS_CALC_INTERVAL = 100;       //how long to wait between asking GPS for data
-byte const ACCEL_INTERVAL = 50;           //time between reading accelerometer
-byte const SPEED_CALC_INTERVAL = 125;     //read number of pulses approx every 1/8 second
-byte const MPH_BUFFER_LENGTH = 4;         //length of MPH buffer
-byte const COMPASS_INTERVAL = 200;        //how long to wait between compass checks
-uint16_t const PROD_INTERVAL = 1000;      //prod debug message interval
+uint8_t const GPS_CALC_INTERVAL = 100;      //how long to wait between asking GPS for data
+uint8_t const ACCEL_INTERVAL = 50;          //time between reading accelerometer
+uint8_t const SPEED_CALC_INTERVAL = 125;    //read number of pulses approx every 1/8 second
+uint8_t const MPH_BUFFER_LENGTH = 4;        //length of MPH buffer
+uint8_t const COMPASS_INTERVAL = 200;       //how long to wait between compass checks
+uint16_t const PROD_INTERVAL = 1000;        //prod debug message interval
+uint8_t const FPR_INTERVAL = 20;            //time between reading and sending fuel pressure         
 
 unsigned long currentMillis = 0;          //now
 unsigned long lastMphMillis = 0;          //used to cut time into slices of SPEED_CALC_INTERVAL
@@ -44,6 +45,7 @@ unsigned long lastGpsMillis = 0;          //used with GPS_CALC_INTERVAL
 unsigned long lastAccelMillis = 0;        //used with ACCEL_INTERVAL
 unsigned long lastCompassMillis = 0;      //used with COMPASS_INTERVAL
 unsigned long lastProdMillis = 0;         //used with PROD_INTERVAL
+unsigned long lastFprMillis = 0;          //used with FPR_INTERVAL
 
 // Variables for calculating MPH ///////////////////////////////////////////////
 
@@ -137,7 +139,7 @@ char* compassDirection = "";
 // Fuel pressure variables /////////////////////////////////////////////////////
 
 uint16_t fprRaw = 0;
-uint16_t fprPsi = 0;
+uint8_t fprPsi = 0;
 
 // END GLOBAL VARIABLES ////////////////////////////////////////////////////////
 
@@ -394,7 +396,12 @@ void loop() {
     lastMphMillis = currentMillis;
   }
 
-  getFprData();
+  if(currentMillis - lastFprMillis >= FPR_INTERVAL && currentMillis > 500)
+  {
+    getFprData();
+    sendFprToCan();
+    lastFprMillis = currentMillis;
+  }
 
   if(currentMillis - lastAccelMillis >= ACCEL_INTERVAL && currentMillis > 500)
   {
@@ -476,6 +483,12 @@ void loop() {
     Serial.print("Accel Z: ");
     Serial.println(accelZ);
 
+    Serial.print("Compass Heading: ");
+    Serial.println(compassHeading);
+
+    Serial.print("Compass Direction: ");
+    Serial.println(compassDirection);
+
     Serial.print("MPH: ");
     Serial.println(mph);
 
@@ -490,6 +503,10 @@ void loop() {
 
     Serial.print("Altitude: ");
     Serial.println(altitude);
+
+    Serial.print("Fuel pressure: ");
+    Serial.print(fprPsi);
+    Serial.println(" psi");
 
     Serial.println("====================");
     lastProdMillis = currentMillis;
@@ -510,7 +527,7 @@ void getFprData()
     fprVoltage = 450;
   }
   fprPsi = map(fprVoltage, 50, 450, 0, 100);
-  Serial.println(fprPsi);
+  //Serial.println(fprPsi);
 }
 
 char* getCompassDirection(float heading)
@@ -819,6 +836,24 @@ void sendVssToCan(float mph)
   }
   
   sendDataToCan(CAN_SH_VSS_MSG_ID);
+}
+
+void sendFprToCan()
+{
+  clearBuffer(&txBuffer[0]);
+
+  union
+  {
+    long fprRaw;
+    byte buf[2];
+  } fprRawUnion;
+  fprRawUnion.fprRaw = fprRaw;
+  
+  txBuffer[0] = fprPsi;
+  txBuffer[1] = fprRawUnion.buf[0];
+  txBuffer[2] = fprRawUnion.buf[1];
+
+  sendDataToCan(CAN_SH_PRES_MSG_ID);
 }
 
 void sendDataToCan(uint16_t messageID)
