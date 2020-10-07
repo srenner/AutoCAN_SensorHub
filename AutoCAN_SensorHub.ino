@@ -685,19 +685,9 @@ void sendGpsDatetimeToCan()
   txBuffer[5] = yearUnion.buf[0];
   txBuffer[6] = yearUnion.buf[1];
 
-  // Setup CAN packet.
-  txMsg.ctrl.ide = MESSAGE_PROTOCOL;    // Set CAN protocol (0: CAN 2.0A, 1: CAN 2.0B)
-  txMsg.id.std   = CAN_SH_CLK_MSG_ID;   // Set message ID
-  txMsg.dlc      = MESSAGE_LENGTH;      // Data length: 8 bytes
-  txMsg.ctrl.rtr = MESSAGE_RTR;         // Set rtr bit
-  txMsg.pt_data = &txBuffer[0];         // reference message data to transmit buffer
+  //CAN_SH_CLK_MSG_ID
 
-  // Send command to the CAN port controller
-  txMsg.cmd = CMD_TX_DATA;       // send message
-  // Wait for the command to be accepted by the controller
-  while(can_cmd(&txMsg) != CAN_CMD_ACCEPTED);
-  // Wait for command to finish executing
-  while(can_get_status(&txMsg) == CAN_STATUS_NOT_COMPLETED);
+  sendDataToCan(CAN_SH_CLK_MSG_ID);
 }
 
 void sendGpsLatitudeToCan()
@@ -725,19 +715,7 @@ void sendGpsLatitudeToCan()
   txBuffer[3] = latitudeUnion.buf[2];
   txBuffer[4] = latitudeUnion.buf[3];
 
-  // Setup CAN packet.
-  txMsg.ctrl.ide = MESSAGE_PROTOCOL;    // Set CAN protocol (0: CAN 2.0A, 1: CAN 2.0B)
-  txMsg.id.std   = CAN_SH_LAT_MSG_ID;   // Set message ID
-  txMsg.dlc      = MESSAGE_LENGTH;      // Data length: 8 bytes
-  txMsg.ctrl.rtr = MESSAGE_RTR;         // Set rtr bit
-  txMsg.pt_data = &txBuffer[0];         // reference message data to transmit buffer
-
-  // Send command to the CAN port controller
-  txMsg.cmd = CMD_TX_DATA;       // send message
-  // Wait for the command to be accepted by the controller
-  while(can_cmd(&txMsg) != CAN_CMD_ACCEPTED);
-  // Wait for command to finish executing
-  while(can_get_status(&txMsg) == CAN_STATUS_NOT_COMPLETED);
+  sendDataToCan(CAN_SH_LAT_MSG_ID);
 }
 
 void sendGpsLongitudeToCan()
@@ -765,19 +743,7 @@ void sendGpsLongitudeToCan()
   txBuffer[3] = longitudeUnion.buf[2];
   txBuffer[4] = longitudeUnion.buf[3];
 
-  // Setup CAN packet.
-  txMsg.ctrl.ide = MESSAGE_PROTOCOL;    // Set CAN protocol (0: CAN 2.0A, 1: CAN 2.0B)
-  txMsg.id.std   = CAN_SH_LONG_MSG_ID;   // Set message ID
-  txMsg.dlc      = MESSAGE_LENGTH;      // Data length: 8 bytes
-  txMsg.ctrl.rtr = MESSAGE_RTR;         // Set rtr bit
-  txMsg.pt_data = &txBuffer[0];         // reference message data to transmit buffer
-
-  // Send command to the CAN port controller
-  txMsg.cmd = CMD_TX_DATA;       // send message
-  // Wait for the command to be accepted by the controller
-  while(can_cmd(&txMsg) != CAN_CMD_ACCEPTED);
-  // Wait for command to finish executing
-  while(can_get_status(&txMsg) == CAN_STATUS_NOT_COMPLETED);
+  sendDataToCan(CAN_SH_LONG_MSG_ID);
 }
 
 void sendGpsAltitudeToCan()
@@ -796,19 +762,7 @@ void sendGpsAltitudeToCan()
   txBuffer[2] = altitudeUnion.buf[2];
   txBuffer[3] = altitudeUnion.buf[3];
 
-  // Setup CAN packet.
-  txMsg.ctrl.ide = MESSAGE_PROTOCOL;    // Set CAN protocol (0: CAN 2.0A, 1: CAN 2.0B)
-  txMsg.id.std   = CAN_SH_ALT_MSG_ID;   // Set message ID
-  txMsg.dlc      = MESSAGE_LENGTH;      // Data length: 8 bytes
-  txMsg.ctrl.rtr = MESSAGE_RTR;         // Set rtr bit
-  txMsg.pt_data = &txBuffer[0];         // reference message data to transmit buffer
-
-  // Send command to the CAN port controller
-  txMsg.cmd = CMD_TX_DATA;       // send message
-  // Wait for the command to be accepted by the controller
-  while(can_cmd(&txMsg) != CAN_CMD_ACCEPTED);
-  // Wait for command to finish executing
-  while(can_get_status(&txMsg) == CAN_STATUS_NOT_COMPLETED);
+  sendDataToCan(CAN_SH_ALT_MSG_ID);
 }
 
 void sendVssToCan(float mph) 
@@ -864,9 +818,16 @@ void sendVssToCan(float mph)
     Serial.println(txBuffer[7]);
   }
   
+  sendDataToCan(CAN_SH_VSS_MSG_ID);
+}
+
+void sendDataToCan(uint16_t messageID)
+{
+  //assuming the buffer is already filled with data
+
   // Setup CAN packet.
   txMsg.ctrl.ide = MESSAGE_PROTOCOL;    // Set CAN protocol (0: CAN 2.0A, 1: CAN 2.0B)
-  txMsg.id.std   = CAN_SH_VSS_MSG_ID;   // Set message ID
+  txMsg.id.std   = messageID;           // Set message ID
   txMsg.dlc      = MESSAGE_LENGTH;      // Data length: 8 bytes
   txMsg.ctrl.rtr = MESSAGE_RTR;         // Set rtr bit
   txMsg.pt_data = &txBuffer[0];         // reference message data to transmit buffer
