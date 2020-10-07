@@ -121,6 +121,11 @@ const byte DEBOUNCE_DELAY = 250;
 // Accelerometer & compass variables ///////////////////////////////////////////
 
 Adafruit_LSM303_Accel_Unified accel = Adafruit_LSM303_Accel_Unified(11223);
+
+float initialAccelX = 0.0;
+float initialAccelY = 0.0;
+float initialAccelZ = 0.0;
+
 float accelX = 0.0;
 float accelY = 0.0;
 float accelZ = 0.0;
@@ -260,6 +265,8 @@ void setup() {
     reset();
   }
 
+
+
   #pragma region setup can bus
 
   txMsg.pt_data = &txBuffer[0];      // reference message data to transmit buffer
@@ -374,6 +381,9 @@ void loop() {
   {
     getGpsData();
     sendGpsDatetimeToCan();
+    sendGpsLatitudeToCan();
+    sendGpsLongitudeToCan();
+    sendGpsAltitudeToCan();
     lastGpsMillis = currentMillis;
   }
 
@@ -481,10 +491,6 @@ void loop() {
     Serial.print("Altitude: ");
     Serial.println(altitude);
 
-
-
-
-
     Serial.println("====================");
     lastProdMillis = currentMillis;
   }
@@ -553,7 +559,6 @@ void getGpsData()
     setTime(gps.getHour(), gps.getMinute(), gps.getSecond(), gps.getDay(), gps.getMonth(), gps.getYear());
     adjustTime(timeZoneOffset[timeZoneIndex] * SECS_PER_HOUR);
 
-
     if (timeStatus()!= timeNotSet) {
       if (now() != previousTime) { //update the display only if the time has changed
         previousTime = now();
@@ -567,8 +572,6 @@ void getGpsData()
 
       }
     }
-
-
 
     latitude = gps.getLatitude();
     longitude = gps.getLongitude();
@@ -682,25 +685,120 @@ void sendGpsDatetimeToCan()
   txBuffer[5] = yearUnion.buf[0];
   txBuffer[6] = yearUnion.buf[1];
 
-  // Serial.print(txBuffer[0]);
-  // Serial.print(" ");
-  // Serial.print(txBuffer[1]);
-  // Serial.print(" ");
-  // Serial.print(txBuffer[2]);
-  // Serial.print(" ");
-  // Serial.print(txBuffer[3]);
-  // Serial.print(" ");
-  // Serial.print(txBuffer[4]);
-  // Serial.print(" ");
-  // Serial.print(txBuffer[5]);
-  // Serial.print(" ");
-  // Serial.print(txBuffer[6]);
-  // Serial.print(" ");
-  // Serial.println(txBuffer[7]);
-
   // Setup CAN packet.
   txMsg.ctrl.ide = MESSAGE_PROTOCOL;    // Set CAN protocol (0: CAN 2.0A, 1: CAN 2.0B)
   txMsg.id.std   = CAN_SH_CLK_MSG_ID;   // Set message ID
+  txMsg.dlc      = MESSAGE_LENGTH;      // Data length: 8 bytes
+  txMsg.ctrl.rtr = MESSAGE_RTR;         // Set rtr bit
+  txMsg.pt_data = &txBuffer[0];         // reference message data to transmit buffer
+
+  // Send command to the CAN port controller
+  txMsg.cmd = CMD_TX_DATA;       // send message
+  // Wait for the command to be accepted by the controller
+  while(can_cmd(&txMsg) != CAN_CMD_ACCEPTED);
+  // Wait for command to finish executing
+  while(can_get_status(&txMsg) == CAN_STATUS_NOT_COMPLETED);
+}
+
+void sendGpsLatitudeToCan()
+{
+  clearBuffer(&txBuffer[0]);
+
+  union
+  {
+    long latitude;
+    byte buf[4];
+  } latitudeUnion;
+  latitudeUnion.latitude = latitude;
+  
+  if(latitude >= 0)
+  {
+    txBuffer[0] = 0;
+  }
+  else
+  {
+    txBuffer[0] = 1;
+  }
+  
+  txBuffer[1] = latitudeUnion.buf[0];
+  txBuffer[2] = latitudeUnion.buf[1];
+  txBuffer[3] = latitudeUnion.buf[2];
+  txBuffer[4] = latitudeUnion.buf[3];
+
+  // Setup CAN packet.
+  txMsg.ctrl.ide = MESSAGE_PROTOCOL;    // Set CAN protocol (0: CAN 2.0A, 1: CAN 2.0B)
+  txMsg.id.std   = CAN_SH_LAT_MSG_ID;   // Set message ID
+  txMsg.dlc      = MESSAGE_LENGTH;      // Data length: 8 bytes
+  txMsg.ctrl.rtr = MESSAGE_RTR;         // Set rtr bit
+  txMsg.pt_data = &txBuffer[0];         // reference message data to transmit buffer
+
+  // Send command to the CAN port controller
+  txMsg.cmd = CMD_TX_DATA;       // send message
+  // Wait for the command to be accepted by the controller
+  while(can_cmd(&txMsg) != CAN_CMD_ACCEPTED);
+  // Wait for command to finish executing
+  while(can_get_status(&txMsg) == CAN_STATUS_NOT_COMPLETED);
+}
+
+void sendGpsLongitudeToCan()
+{
+  clearBuffer(&txBuffer[0]);
+
+  union
+  {
+    long longitude;
+    byte buf[4];
+  } longitudeUnion;
+  longitudeUnion.longitude = longitude;
+  
+  if(longitude >= 0)
+  {
+    txBuffer[0] = 0;
+  }
+  else
+  {
+    txBuffer[0] = 1;
+  }
+  
+  txBuffer[1] = longitudeUnion.buf[0];
+  txBuffer[2] = longitudeUnion.buf[1];
+  txBuffer[3] = longitudeUnion.buf[2];
+  txBuffer[4] = longitudeUnion.buf[3];
+
+  // Setup CAN packet.
+  txMsg.ctrl.ide = MESSAGE_PROTOCOL;    // Set CAN protocol (0: CAN 2.0A, 1: CAN 2.0B)
+  txMsg.id.std   = CAN_SH_LONG_MSG_ID;   // Set message ID
+  txMsg.dlc      = MESSAGE_LENGTH;      // Data length: 8 bytes
+  txMsg.ctrl.rtr = MESSAGE_RTR;         // Set rtr bit
+  txMsg.pt_data = &txBuffer[0];         // reference message data to transmit buffer
+
+  // Send command to the CAN port controller
+  txMsg.cmd = CMD_TX_DATA;       // send message
+  // Wait for the command to be accepted by the controller
+  while(can_cmd(&txMsg) != CAN_CMD_ACCEPTED);
+  // Wait for command to finish executing
+  while(can_get_status(&txMsg) == CAN_STATUS_NOT_COMPLETED);
+}
+
+void sendGpsAltitudeToCan()
+{
+  clearBuffer(&txBuffer[0]);
+
+  union
+  {
+    long altitude;
+    byte buf[4];
+  } altitudeUnion;
+  altitudeUnion.altitude = altitude;
+    
+  txBuffer[0] = altitudeUnion.buf[0];
+  txBuffer[1] = altitudeUnion.buf[1];
+  txBuffer[2] = altitudeUnion.buf[2];
+  txBuffer[3] = altitudeUnion.buf[3];
+
+  // Setup CAN packet.
+  txMsg.ctrl.ide = MESSAGE_PROTOCOL;    // Set CAN protocol (0: CAN 2.0A, 1: CAN 2.0B)
+  txMsg.id.std   = CAN_SH_ALT_MSG_ID;   // Set message ID
   txMsg.dlc      = MESSAGE_LENGTH;      // Data length: 8 bytes
   txMsg.ctrl.rtr = MESSAGE_RTR;         // Set rtr bit
   txMsg.pt_data = &txBuffer[0];         // reference message data to transmit buffer
