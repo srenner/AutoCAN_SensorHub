@@ -260,6 +260,13 @@ void setup() {
   accel.setRange(LSM303_RANGE_2G);
   accel.setMode(LSM303_MODE_HIGH_RESOLUTION);
 
+    sensors_event_t event;
+    accel.getEvent(&event);
+
+    initialAccelX = event.acceleration.x;
+    initialAccelY = event.acceleration.y;
+    initialAccelZ = event.acceleration.z;
+
   if (!mag.begin()) 
   {
     Serial.println("LSM303 (compass) not found.");
@@ -408,9 +415,9 @@ void loop() {
     sensors_event_t event;
     accel.getEvent(&event);
 
-    accelX = event.acceleration.x;
-    accelY = event.acceleration.y;
-    accelZ = event.acceleration.z;
+    accelX = abs(event.acceleration.x - initialAccelX);
+    accelY = abs(event.acceleration.y - initialAccelY);
+    accelZ = abs(event.acceleration.z - initialAccelZ);
 
     if(DEBUG_ACCEL)
     {
