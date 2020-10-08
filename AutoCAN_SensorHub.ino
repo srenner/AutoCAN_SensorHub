@@ -420,6 +420,8 @@ void loop() {
     accelY = abs(event.acceleration.y - initialAccelY);
     accelZ = abs(event.acceleration.z - initialAccelZ);
 
+    sendAcceltoCan();
+
     if(DEBUG_ACCEL)
     {
       /* Display the results (acceleration is measured in m/s^2) */
@@ -467,6 +469,7 @@ void loop() {
       Serial.println(")");
     }
 
+    sendCompassToCan();
     compassInterval.lastMillis = currentMillis;
   }
 
@@ -877,6 +880,45 @@ void sendFprToCan()
   txBuffer[2] = fprRawUnion.buf[1];
 
   sendDataToCan(CAN_SH_PRES_MSG_ID);
+}
+
+void sendAcceltoCan()
+{
+  clearBuffer(&txBuffer[0]);
+  uint8_t adjustedX = (uint8_t)(accelX * 100);
+  uint8_t adjustedY = (uint8_t)(accelY * 100);
+  uint8_t adjustedZ = (uint8_t)(accelZ * 100);
+  
+  txBuffer[0] = adjustedX;
+  txBuffer[1] = adjustedY;
+  txBuffer[2] = adjustedZ;
+
+  sendDataToCan(CAN_SH_ACCEL_MSG_ID);
+}
+
+void sendCompassToCan()
+{
+  clearBuffer(&txBuffer[0]);
+  
+  union
+  {
+    uint16_t heading;
+    byte buf[2];
+  } headingUnion;
+  headingUnion.heading = (uint16_t)compassHeading;
+  txBuffer[0] = headingUnion.buf[0];
+  txBuffer[1] = headingUnion.buf[1];
+
+  union
+  {
+    char* direction;
+    byte buf[2];
+  } directionUnion;
+  directionUnion.direction = compassDirection;
+  txBuffer[2] = directionUnion.buf[0];
+  txBuffer[3] = directionUnion.buf[1];
+
+  sendDataToCan(CAN_SH_COMPASS_MSG_ID);
 }
 
 void sendDataToCan(uint16_t messageID)
