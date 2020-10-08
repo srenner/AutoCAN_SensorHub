@@ -780,11 +780,21 @@ void sendGpsAltitudeToCan()
     byte buf[4];
   } altitudeUnion;
   altitudeUnion.altitude = altitude;
+
+  if(altitude >= 0)
+  {
+    txBuffer[0] = 0;
+  }
+  else
+  {
+    txBuffer[0] = 1;
+  }
+  
     
-  txBuffer[0] = altitudeUnion.buf[0];
-  txBuffer[1] = altitudeUnion.buf[1];
-  txBuffer[2] = altitudeUnion.buf[2];
-  txBuffer[3] = altitudeUnion.buf[3];
+  txBuffer[1] = altitudeUnion.buf[0];
+  txBuffer[2] = altitudeUnion.buf[1];
+  txBuffer[3] = altitudeUnion.buf[2];
+  txBuffer[4] = altitudeUnion.buf[3];
 
   sendDataToCan(CAN_SH_ALT_MSG_ID);
 }
