@@ -112,6 +112,7 @@ time_t previousTime = 0; // when the digital clock was displayed
 long longitude = 0;
 long latitude = 0;
 long altitude = 0;
+uint8_t siv = 0; //satellites in view
 
 // Button press variables //////////////////////////////////////////////////////
 
@@ -511,6 +512,9 @@ void loop() {
     Serial.print("Altitude: ");
     Serial.println(altitude);
 
+    Serial.print("SIV: ");
+    Serial.println(siv);
+
     Serial.print("Fuel pressure: ");
     Serial.print(fprPsi);
     Serial.println(" psi");
@@ -600,7 +604,7 @@ void getGpsData()
     latitude = gps.getLatitude();
     longitude = gps.getLongitude();
     altitude = gps.getAltitude();
-    byte SIV = gps.getSIV();
+    siv = gps.getSIV();
 
     if(DEBUG_GPS)
     {
@@ -616,7 +620,7 @@ void getGpsData()
       Serial.print(F(" (mm)"));
 
       Serial.print(F(" SIV: "));
-      Serial.print(SIV);
+      Serial.print(siv);
 
       Serial.println();
 
@@ -795,6 +799,8 @@ void sendGpsAltitudeToCan()
   txBuffer[2] = altitudeUnion.buf[1];
   txBuffer[3] = altitudeUnion.buf[2];
   txBuffer[4] = altitudeUnion.buf[3];
+
+  txBuffer[5] = siv;
 
   sendDataToCan(CAN_SH_ALT_MSG_ID);
 }
