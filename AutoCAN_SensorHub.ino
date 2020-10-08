@@ -45,7 +45,7 @@ executionTimer fprInterval = {20, 0};       //50hz  - fuel pressure calc and sen
 
 uint8_t const MPH_BUFFER_LENGTH = 4;        //length of MPH buffer
 
-unsigned long currentMillis = 0;          //now
+unsigned long currentMillis = 0;            //now
 
 // Variables for calculating MPH ///////////////////////////////////////////////
 
