@@ -31,21 +31,21 @@ uint8_t const FPR_PIN = 15;               //analog input for fuel pressure
 
 // Variables for timing ////////////////////////////////////////////////////////
 
-uint8_t const GPS_CALC_INTERVAL = 100;      //how long to wait between asking GPS for data
-uint8_t const ACCEL_INTERVAL = 50;          //time between reading accelerometer
-uint8_t const SPEED_CALC_INTERVAL = 125;    //read number of pulses approx every 1/8 second
+typedef struct {
+  uint16_t interval;
+  uint32_t lastMillis;
+} executionTimer;
+
+executionTimer prodInterval = {1000, 0};    //1hz   - serial output all values
+executionTimer compassInterval = {200, 0};  //5hz   - heading/direction calc and send
+executionTimer mphInterval = {125, 0};      //8hz   - speed calc and send
+executionTimer gpsInterval = {100, 0};      //10hz  - gps calc and send
+executionTimer accelInterval = {50, 0};     //20hz  - accelerometer x/y/z calc and send
+executionTimer fprInterval = {20, 0};       //50hz  - fuel pressure calc and send
+
 uint8_t const MPH_BUFFER_LENGTH = 4;        //length of MPH buffer
-uint8_t const COMPASS_INTERVAL = 200;       //how long to wait between compass checks
-uint16_t const PROD_INTERVAL = 1000;        //prod debug message interval
-uint8_t const FPR_INTERVAL = 20;            //time between reading and sending fuel pressure         
 
 unsigned long currentMillis = 0;          //now
-unsigned long lastMphMillis = 0;          //used to cut time into slices of SPEED_CALC_INTERVAL
-unsigned long lastGpsMillis = 0;          //used with GPS_CALC_INTERVAL
-unsigned long lastAccelMillis = 0;        //used with ACCEL_INTERVAL
-unsigned long lastCompassMillis = 0;      //used with COMPASS_INTERVAL
-unsigned long lastProdMillis = 0;         //used with PROD_INTERVAL
-unsigned long lastFprMillis = 0;          //used with FPR_INTERVAL
 
 // Variables for calculating MPH ///////////////////////////////////////////////
 
@@ -386,31 +386,31 @@ void loop() {
     }
   }
 
-  if(currentMillis - lastGpsMillis >= GPS_CALC_INTERVAL && currentMillis > 500)
+  if(currentMillis - gpsInterval.lastMillis >= gpsInterval.interval && currentMillis > 500)
   {
     getGpsData();
     sendGpsDatetimeToCan();
     sendGpsLatitudeToCan();
     sendGpsLongitudeToCan();
     sendGpsAltitudeToCan();
-    lastGpsMillis = currentMillis;
+    gpsInterval.lastMillis = currentMillis;
   }
 
-  if(currentMillis - lastMphMillis >= SPEED_CALC_INTERVAL && currentMillis > 500)
+  if(currentMillis - mphInterval.lastMillis >= mphInterval.interval && currentMillis > 500)
   {
     mph = calculateSpeed();
     sendVssToCan(mph); //mph
-    lastMphMillis = currentMillis;
+    mphInterval.lastMillis = currentMillis;
   }
 
-  if(currentMillis - lastFprMillis >= FPR_INTERVAL && currentMillis > 500)
+  if(currentMillis - fprInterval.lastMillis >= fprInterval.interval && currentMillis > 500)
   {
     getFprData();
     sendFprToCan();
-    lastFprMillis = currentMillis;
+    fprInterval.lastMillis = currentMillis;
   }
 
-  if(currentMillis - lastAccelMillis >= ACCEL_INTERVAL && currentMillis > 500)
+  if(currentMillis - accelInterval.lastMillis >= accelInterval.interval && currentMillis > 500)
   {
     sensors_event_t event;
     accel.getEvent(&event);
@@ -433,10 +433,10 @@ void loop() {
       Serial.print("  ");
       Serial.println("m/s^2");
     }
-    lastAccelMillis = currentMillis;
+    accelInterval.lastMillis = currentMillis;
   }
 
-  if(currentMillis - lastCompassMillis >= COMPASS_INTERVAL && currentMillis > 500)
+  if(currentMillis - compassInterval.lastMillis >= compassInterval.interval && currentMillis > 500)
   {
     sensors_event_t event;
     mag.getEvent(&event);
@@ -466,11 +466,11 @@ void loop() {
       Serial.println(")");
     }
 
-    lastCompassMillis = currentMillis;
+    compassInterval.lastMillis = currentMillis;
   }
 
   
-  if(DEBUG_PROD && currentMillis - lastProdMillis >= PROD_INTERVAL && currentMillis > 500)
+  if(DEBUG_PROD && currentMillis - prodInterval.lastMillis >= prodInterval.interval && currentMillis > 500)
   {
     char formattedTime[9];
     sprintf(formattedTime, "%02d:%02d:%02d", gpsDatetime.hour, gpsDatetime.minute, gpsDatetime.second);
@@ -516,7 +516,7 @@ void loop() {
     Serial.println(" psi");
 
     Serial.println("====================");
-    lastProdMillis = currentMillis;
+    prodInterval.lastMillis = currentMillis;
   }
 
 }
@@ -666,7 +666,7 @@ void processCanMessages()
 float calculateSpeed() {
   long pulses = vssCounter - vssCounterPrevious;
   vssCounterPrevious = vssCounter;
-  float pulsesPerSecond = (float)pulses * ((float)1000 / ((float)currentMillis - (float)lastMphMillis));
+  float pulsesPerSecond = (float)pulses * ((float)1000 / ((float)currentMillis - (float)mphInterval.lastMillis));
   float pulsesPerMinute = pulsesPerSecond * 60.0;
   float pulsesPerHour = pulsesPerMinute * 60.0;
   float milesPerHour = pulsesPerHour / (float)VSS_PULSE_PER_MILE;
