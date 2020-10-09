@@ -142,6 +142,23 @@ char* compassDirection = "";
 uint16_t fprRaw = 0;
 uint8_t fprPsi = 0;
 
+// Sensor variable object //////////////////////////////////////////////////////
+
+typedef struct {
+  datetime gpsDatetime;
+  float accelX;
+  float accelY;
+  float accelZ;
+  float compassHeading;
+  char* compassDirection;
+  float mph;
+  int32_t longitude;
+  int32_t latitude;
+  int32_t altitude;
+  uint8_t siv;
+  uint8_t fprPsi;
+} sensorValues;
+
 // END GLOBAL VARIABLES ////////////////////////////////////////////////////////
 
 //interrupt routine for interrupt 7 (pin 9) - vss sensor
