@@ -29,3 +29,5 @@ Outputs
 * Accelerometer data on CAN bus
 * GPS coordinates, time, date on CAN bus
 * Compass heading (degrees) and text representation ("NW", etc.) on CAN bus
+* Ambient outdoor temperature
+* Cabin temperature
