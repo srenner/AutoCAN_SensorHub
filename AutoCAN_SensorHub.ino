@@ -135,7 +135,7 @@ float accelZ = 0.0;
 
 Adafruit_LSM303DLH_Mag_Unified mag = Adafruit_LSM303DLH_Mag_Unified(22334);
 float compassHeading = 0.0;
-char* compassDirection = "";
+int compassDirectionIndex = 8;
 
 // Fuel pressure variables /////////////////////////////////////////////////////
 
@@ -478,11 +478,11 @@ void loop() {
       Serial.print(" (");
     }
 
-    compassDirection = getCompassDirection(compassHeading);
+    compassDirectionIndex = getCompassDirection(compassHeading);
     
     if(DEBUG_COMPASS)
     {
-      Serial.print(compassDirection);
+      Serial.print(compassDirections[compassDirectionIndex]);
       Serial.println(")");
     }
 
@@ -515,7 +515,7 @@ void loop() {
     Serial.println(compassHeading);
 
     Serial.print("Compass Direction: ");
-    Serial.println(compassDirection);
+    Serial.println(compassDirections[compassDirectionIndex]);
 
     Serial.print("MPH: ");
     Serial.println(mph);
@@ -561,43 +561,43 @@ void getFprData()
   //Serial.println(fprPsi);
 }
 
-char* getCompassDirection(float heading)
+uint8_t getCompassDirection(float heading)
 {
-    char* headingText;
+    uint8_t headingTextIndex = 8;
 
     if(heading >= 330.0 || heading <= 30.0)
     {
-      headingText = "N";
+      headingTextIndex = 0;
     }
     else if(heading >= 30.1 && heading <= 59.9)
     {
-      headingText = "NE";
+      headingTextIndex = 1;
     }
     else if(heading >= 60.0 && heading <= 120.0)
     {
-      headingText = "E";
+      headingTextIndex = 2;
     }
     else if(heading >= 120.1 && heading <= 149.9)
     {
-      headingText = "SE";
+      headingTextIndex = 3;
     }
     else if(heading >= 150.0 && heading <= 210.0)
     {
-      headingText = "S";
+      headingTextIndex = 4;
     }
     else if(heading >= 210.1 && heading <= 239.9)
     {
-      headingText = "SW";
+      headingTextIndex = 5;
     }
     else if(heading >= 240.0 && heading <= 300.0)
     {
-      headingText = "W";
+      headingTextIndex = 6;
     }
     else if(heading >= 300.1 && heading <= 329.9)
     {
-      headingText = "NW";
+      headingTextIndex = 7;
     }
-    return headingText;
+    return headingTextIndex;
 }
 
 void getGpsData()
@@ -926,14 +926,7 @@ void sendCompassToCan()
   txBuffer[0] = headingUnion.buf[0];
   txBuffer[1] = headingUnion.buf[1];
 
-  union
-  {
-    char* direction;
-    byte buf[2];
-  } directionUnion;
-  directionUnion.direction = compassDirection;
-  txBuffer[2] = directionUnion.buf[0];
-  txBuffer[3] = directionUnion.buf[1];
+  txBuffer[2] = compassDirectionIndex;
 
   sendDataToCan(CAN_SH_COMPASS_MSG_ID);
 }
