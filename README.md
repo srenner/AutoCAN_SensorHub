@@ -9,7 +9,8 @@ Development Hardware
 * DAC for analog output (only outputting AFR at this point)
 * 3 axis accelerometer with compass (I2C communication)
 * GPS module (I2C communication)
-* 2 temperature sensors using 1-wire communication protocol
+* Temperature sensor using 1-wire communication protocol
+* Optoisolators to take 12v inputs
 
 Inputs
 -
