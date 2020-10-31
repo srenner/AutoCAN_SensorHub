@@ -19,15 +19,18 @@ Inputs
 * Triple axis accelerometer
 * GPS
 * Compass
+* Reverse trigger wire from transmission
+* Ambient temperature sensor
 
 Outputs
 -
 * Fuel pressure on CAN bus
 * VSS on CAN bus
 * Trip odometer on CAN bus
+* Reverse indicator on CAN bus
 * Analog AFR signal
 * Accelerometer data on CAN bus
 * GPS coordinates, time, date on CAN bus
 * Compass heading (degrees) and text representation ("NW", etc.) on CAN bus
 * Ambient outdoor temperature
-* Cabin temperature
+* Aux cabin heater relay signal
