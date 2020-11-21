@@ -11,6 +11,7 @@ Development Hardware
 * GPS module (I2C communication)
 * Temperature sensor using 1-wire communication protocol
 * Optoisolators to take 12v inputs
+* Electric cabin heater - VW/Audi part number 1K0 963 235 F
 
 Inputs
 -
@@ -34,4 +35,4 @@ Outputs
 * GPS coordinates, time, date on CAN bus
 * Compass heading (degrees) and text representation ("NW", etc.) on CAN bus
 * Ambient outdoor temperature
-* Aux cabin heater relay signal
+* 3x cabin aux heater relay signals
