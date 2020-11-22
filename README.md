@@ -10,6 +10,7 @@ Development Hardware
 * 3 axis accelerometer with compass (I2C communication)
 * GPS module (I2C communication)
 * Temperature sensor using 1-wire communication protocol
+* [Adafruit Bluefruit LE SPI Friend](https://www.adafruit.com/product/2633) for wireless production debugging
 * Optoisolators to take 12v inputs
 * Electric cabin heater - VW/Audi part number 1K0 963 235 F
 
